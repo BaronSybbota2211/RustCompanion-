@@ -1,0 +1,13 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/RustCompanion.Core/RustCompanion.Core.csproj" />
+    <Project Path="src/RustCompanion.RustPlus/RustCompanion.RustPlus.csproj" />
+    <Project Path="src/RustCompanion.App/RustCompanion.App.csproj" />
+  </Folder>
+  <Folder Name="/src/ThirdParty/">
+    <Project Path="src/ThirdParty/RustPlusApi/RustPlusApi.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/RustCompanion.Tests/RustCompanion.Tests.csproj" />
+  </Folder>
+</Solution>

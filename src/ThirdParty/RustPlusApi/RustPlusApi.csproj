@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Исходники HandyS11/RustPlusApi (MIT), ветка feat/companion-socket, коммит ad4310583ee2c7c6a6dbd6b412df382ef92d461b (2026-11-05):
+    в ней есть маршрут Facepunch /socket/{ServerId} (RustPlusConnection.ServerId / AuthToken), которого нет в опубликованном пакете 2.0.0-beta.9.
+    Подключены как проект, а не как чужая скомпилированная сборка: код прочитан и собирается из исходников.
+    Файлы скопированы без изменений (кроме отсутствующих netstandard-полифилов и анализаторов репозитория). Подробности — THIRD_PARTY.md.
+    Когда поддержка выйдет в обычном пакете NuGet, этот проект можно заменить PackageReference на RustPlusApi.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <AssemblyName>RustPlusApi</AssemblyName>
+    <RootNamespace>RustPlusApi</RootNamespace>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <NoWarn>$(NoWarn);CS1591;CS1573;CS1570;CS1587;CS8618</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="protobuf-net" Version="3.4.40" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <AdditionalFiles Include="Protobuf/RustPlusContracts.proto" />
+  </ItemGroup>
+
+</Project>

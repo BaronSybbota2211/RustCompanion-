@@ -1,0 +1,22 @@
+<Window x:Class="RustCompanion.App.OverlayWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        WindowStyle="None" AllowsTransparency="True" Background="Transparent" Topmost="True"
+        ShowInTaskbar="False" ShowActivated="False" ResizeMode="NoResize" SizeToContent="Height"
+        Width="320" MinWidth="160" MaxWidth="900" Focusable="False" Title="Rust Companion Overlay" UseLayoutRounding="True">
+    <Border x:Name="Chrome" Background="Transparent" CornerRadius="4" BorderBrush="#D9653B" BorderThickness="0">
+        <StackPanel>
+            <Border x:Name="HudPanel" Background="#E6161A1F" CornerRadius="4" Padding="8,6" Visibility="Collapsed">
+                <StackPanel>
+                    <TextBlock x:Name="EditHint" Visibility="Collapsed" Foreground="#D9653B" FontSize="11" Margin="0,0,0,4"
+                               Text="Режим перемещения: перетащите окно, размер — за правый нижний угол"/>
+                    <ItemsControl x:Name="HudLines">
+                        <ItemsControl.ItemTemplate><DataTemplate><TextBlock Text="{Binding}" Foreground="#E3E6EA" FontSize="13" TextWrapping="Wrap" Margin="0,1"/></DataTemplate></ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Border>
+            <!-- Карточки уведомлений создаются в коде (OverlayWindow.xaml.cs): ChamferBorder со стилем ToastCard -->
+            <StackPanel x:Name="ToastHost"/>
+        </StackPanel>
+    </Border>
+</Window>

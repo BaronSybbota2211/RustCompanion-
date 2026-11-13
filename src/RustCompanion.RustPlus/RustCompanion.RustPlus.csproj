@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>RustCompanion.RustPlusAdapter</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- Rust+ клиент (HandyS11/RustPlusApi, MIT) подключён ИСХОДНИКАМИ из src/ThirdParty/RustPlusApi (ветка feat/companion-socket): в опубликованном пакете 2.0.0-beta.9 нет маршрута Facepunch /socket/{ServerId}. См. THIRD_PARTY.md там же. -->
+    <PackageReference Include="RustPlusApi.Fcm" Version="*-*" />
+    <PackageReference Include="RustPlusApi.Fcm.Registration" Version="*-*" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\RustCompanion.Core\RustCompanion.Core.csproj" />
+    <ProjectReference Include="..\ThirdParty\RustPlusApi\RustPlusApi.csproj" />
+  </ItemGroup>
+</Project>

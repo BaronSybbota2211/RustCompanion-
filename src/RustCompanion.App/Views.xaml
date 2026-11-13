@@ -1,0 +1,998 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:vm="clr-namespace:RustCompanion.App.ViewModels"
+                    xmlns:svc="clr-namespace:RustCompanion.App.Services">
+
+    <!-- Обзор -->
+    <DataTemplate DataType="{x:Type vm:DashboardViewModel}">
+        <ScrollViewer VerticalScrollBarVisibility="Auto">
+            <StackPanel Margin="26,22,26,28">
+                <TextBlock Text="ОБЗОР СИСТЕМЫ" Style="{StaticResource Eyebrow}"/>
+                <TextBlock Text="Командный центр" Style="{StaticResource H1}" FontSize="27" Margin="0,3,0,2"/>
+                <TextBlock Text="Быстрый доступ к инструментам Rust Companion" Style="{StaticResource Muted}" Margin="0,0,0,17"/>
+
+                <Border Background="{StaticResource AccentGradient}" BorderBrush="#F04A4A" BorderThickness="1" Padding="16,13" Margin="0,0,0,16">
+                    <DockPanel LastChildFill="True">
+                        <TextBlock DockPanel.Dock="Right" Text="BRUTAL RED" FontSize="10" FontWeight="Bold" Foreground="#FFE3E3" VerticalAlignment="Center"/>
+                        <StackPanel>
+                            <TextBlock Text="SURVIVE. MONITOR. CONTROL." FontSize="15" FontWeight="Black" Foreground="White"/>
+                            <TextBlock Text="Инструменты сервера, события и устройства — в одном месте." FontSize="11" Foreground="#F5DADA" Margin="0,3,0,0"/>
+                        </StackPanel>
+                    </DockPanel>
+                </Border>
+
+                <TextBlock Text="БЫСТРЫЕ ДЕЙСТВИЯ" Style="{StaticResource Eyebrow}" Margin="0,0,0,8"/>
+                <WrapPanel Margin="0,0,0,15">
+                    <Button Content="＋  Новый таймер" Command="{Binding GoTimersCommand}"/>
+                    <Button Content="＋  Добавить сервер" Command="{Binding GoServersCommand}" Background="#292526"/>
+                    <Button Content="Гниение" Command="{Binding GoDecayCommand}" Background="#292526"/>
+                </WrapPanel>
+
+                <Grid>
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                    <Border Grid.Column="0" Style="{StaticResource CardBorder}" Margin="0,0,7,10" MinHeight="170">
+                        <StackPanel>
+                            <TextBlock Text="ИЗБРАННЫЕ СЕРВЕРЫ" Style="{StaticResource Eyebrow}" Margin="0,0,0,10"/>
+                            <TextBlock Text="Нет избранных серверов. Добавьте сервер на вкладке «Серверы» и отметьте звёздочкой."
+                                       Style="{StaticResource Muted}" TextWrapping="Wrap" Visibility="{Binding NoServers, Converter={StaticResource BoolVis}}"/>
+                            <ItemsControl ItemsSource="{Binding FavoriteServers}">
+                                <ItemsControl.ItemTemplate><DataTemplate><Border BorderBrush="#38272A" BorderThickness="0,0,0,1" Padding="0,8"><TextBlock Text="{Binding}" TextWrapping="Wrap" FontWeight="SemiBold"/></Border></DataTemplate></ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </Border>
+                    <Border Grid.Column="1" Style="{StaticResource CardBorder}" Margin="7,0,0,10" MinHeight="170">
+                        <StackPanel>
+                            <TextBlock Text="БЛИЖАЙШИЕ СОБЫТИЯ" Style="{StaticResource Eyebrow}" Margin="0,0,0,10"/>
+                            <TextBlock Text="Нет запущенных таймеров." Style="{StaticResource Muted}" Visibility="{Binding NoTimers, Converter={StaticResource BoolVis}}"/>
+                            <ItemsControl ItemsSource="{Binding ActiveTimers}">
+                                <ItemsControl.ItemTemplate><DataTemplate><Border BorderBrush="#38272A" BorderThickness="0,0,0,1" Padding="0,8"><TextBlock Text="{Binding}" TextWrapping="Wrap" FontWeight="SemiBold"/></Border></DataTemplate></ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </Border>
+                </Grid>
+                <TextBlock Text="СОВЕТ: настройте опрос серверов и Steam в разделе «Настройки», чтобы получать актуальные данные." Style="{StaticResource Muted}" FontSize="11" Margin="2,2,0,0"/>
+            </StackPanel>
+        </ScrollViewer>
+    </DataTemplate>
+
+    <!-- Группа: ручной таймер + прогноз одного события -->
+    <DataTemplate DataType="{x:Type vm:GroupViewModel}">
+        <DockPanel>
+            <StackPanel DockPanel.Dock="Top" Margin="24,16,24,0">
+                <ItemsControl ItemsSource="{Binding Sections}"><ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate><DataTemplate>
+                        <Button Content="{Binding Header}" Padding="14,6" Margin="0,0,8,0"
+                                Command="{Binding DataContext.SelectCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}" CommandParameter="{Binding}"/>
+                    </DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
+                <TextBlock Text="{Binding Selected.Header}" Style="{StaticResource Muted}" Margin="0,6,0,0"/>
+            </StackPanel>
+            <ContentControl Content="{Binding Current}"/>
+        </DockPanel>
+    </DataTemplate>
+
+    <!-- Трекеры -->
+    <DataTemplate DataType="{x:Type vm:TrackerViewModel}">
+        <DockPanel Margin="24">
+            <StackPanel DockPanel.Dock="Top">
+                <TextBlock Text="ТАЙМЕРЫ / СОБЫТИЯ" Style="{StaticResource Eyebrow}" Margin="0,0,0,4"/>
+                <TextBlock Text="{Binding Title}" Style="{StaticResource H1}"/>
+                <TextBlock Text="{Binding Hint}" Style="{StaticResource Muted}"/>
+                <WrapPanel Margin="0,12,0,4">
+                    <StackPanel Margin="0,0,0,6"><TextBlock Text="Название" Style="{StaticResource Muted}"/><TextBox Width="200" Text="{Binding NewName, UpdateSourceTrigger=PropertyChanged}"/></StackPanel>
+                    <StackPanel Margin="0,0,0,6"><TextBlock Text="Интервал, мин" Style="{StaticResource Muted}"/><TextBox Width="110" Text="{Binding NewIntervalMinutes, UpdateSourceTrigger=PropertyChanged}"/></StackPanel>
+                    <StackPanel Margin="0,0,0,6"><TextBlock Text="Предупредить за, мин" Style="{StaticResource Muted}"/><TextBox Width="130" Text="{Binding NewLeadMinutes, UpdateSourceTrigger=PropertyChanged}"/></StackPanel>
+                    <Button Content="Добавить" Command="{Binding AddCommand}" VerticalAlignment="Bottom" Margin="0,0,0,6"/>
+                </WrapPanel>
+                <TextBlock Text="{Binding Error}" Style="{StaticResource ErrorText}" Margin="0,0,0,8"/>
+                <TextBlock Style="{StaticResource Muted}" Text="Таймеров пока нет. Заполните поля выше и нажмите «Добавить»."
+                           Visibility="{Binding IsEmpty, Converter={StaticResource BoolVis}}"/>
+            </StackPanel>
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <ItemsControl ItemsSource="{Binding Items}">
+                    <ItemsControl.ItemTemplate><DataTemplate>
+                        <Border Style="{StaticResource CardBorder}"><StackPanel>
+                            <DockPanel>
+                                <TextBlock DockPanel.Dock="Right" Text="{Binding PhaseText}" Foreground="{StaticResource Accent}" VerticalAlignment="Center"/>
+                                <TextBlock Text="{Binding Name}" FontSize="16" FontWeight="SemiBold"/>
+                            </DockPanel>
+                            <Border Background="#241114" BorderBrush="#713035" BorderThickness="1" Padding="10,5" Margin="0,7,0,6" HorizontalAlignment="Left">
+                                <TextBlock Text="{Binding RemainingText}" FontSize="32" FontWeight="Bold" Foreground="{StaticResource Accent}"/>
+                            </Border>
+                            <TextBlock Text="{Binding DueText}" Style="{StaticResource Muted}"/>
+                            <TextBlock Text="{Binding IntervalText}" Style="{StaticResource Muted}"/>
+                            <TextBlock Text="{Binding StatusLabel}" Style="{StaticResource Muted}" FontStyle="Italic"/>
+                            <StackPanel Orientation="Horizontal" Margin="0,10,0,6">
+                                <Button Content="{Binding StartLabel}" Command="{Binding StartCommand}"/>
+                                <Button Content="{Binding MarkLabel}" Command="{Binding MarkCommand}"/>
+                                <Button Content="Сбросить" Command="{Binding ResetCommand}" Background="#3A424B"/>
+                                <Button Content="Удалить" Command="{Binding DeleteCommand}" Background="#3A424B"/>
+                            </StackPanel>
+                            <DockPanel Margin="0,4,0,4">
+                                <Button DockPanel.Dock="Right" Content="Сохранить заметку" Command="{Binding SaveNoteCommand}" Margin="0"/>
+                                <TextBox Text="{Binding Note, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,8,0"/>
+                            </DockPanel>
+                            <ItemsControl ItemsSource="{Binding History}"><ItemsControl.ItemTemplate><DataTemplate><TextBlock Text="{Binding}" Style="{StaticResource Muted}" FontSize="12"/></DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
+                        </StackPanel></Border>
+                    </DataTemplate></ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+        </DockPanel>
+    </DataTemplate>
+
+    <!-- Серверы -->
+    <DataTemplate DataType="{x:Type vm:ServersViewModel}">
+        <DockPanel Margin="24">
+            <StackPanel DockPanel.Dock="Top">
+                <TextBlock Text="Серверы" Style="{StaticResource H1}"/>
+                <TextBlock Style="{StaticResource Muted}" Text="Опрос по протоколу Steam Query (A2S). Нужен адрес и query-порт сервера (он может отличаться от игрового). «Нет ответа» не означает, что сервер выключен."/>
+                <WrapPanel Margin="0,12,0,4">
+                    <StackPanel><TextBlock Text="Название" Style="{StaticResource Muted}"/><TextBox Width="180" Text="{Binding NewName, UpdateSourceTrigger=PropertyChanged}"/></StackPanel>
+                    <StackPanel><TextBlock Text="Адрес" Style="{StaticResource Muted}"/><TextBox Width="180" Text="{Binding NewHost, UpdateSourceTrigger=PropertyChanged}"/></StackPanel>
+                    <StackPanel><TextBlock Text="Query-порт" Style="{StaticResource Muted}"/><TextBox Width="90" Text="{Binding NewPort, UpdateSourceTrigger=PropertyChanged}"/></StackPanel>
+                    <Button Content="Добавить" Command="{Binding AddCommand}" VerticalAlignment="Bottom" Margin="0,0,8,0"/>
+                    <Button Content="Опросить сейчас" Command="{Binding RefreshAllCommand}" VerticalAlignment="Bottom" Background="#3A424B"/>
+                </WrapPanel>
+                <TextBlock Text="{Binding Error}" Style="{StaticResource ErrorText}" Margin="0,0,0,8"/>
+                <TextBlock Style="{StaticResource Muted}" Text="Серверов пока нет." Visibility="{Binding IsEmpty, Converter={StaticResource BoolVis}}"/>
+            </StackPanel>
+            <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="0,8,4,0"><ItemsControl ItemsSource="{Binding Items}"><ItemsControl.ItemTemplate><DataTemplate>
+                <Border Background="{StaticResource PanelGradient}" BorderBrush="#713035" BorderThickness="1" Padding="0" Margin="0,0,0,11" SnapsToDevicePixels="True">
+                    <Grid>
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="4"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                        <Border Grid.Column="0" Background="{StaticResource AccentGradient}"/>
+                        <Grid Grid.Column="1" Margin="15,12,13,12">
+                            <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                            <Grid>
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                <StackPanel>
+                                    <TextBlock Text="{Binding Name}" FontSize="16" FontWeight="Bold"/>
+                                    <TextBlock Text="{Binding Address}" Style="{StaticResource Muted}" FontSize="11" Margin="0,2,0,0"/>
+                                </StackPanel>
+                                <CheckBox Grid.Column="1" Content="★  Избранный" IsChecked="{Binding Favorite, Mode=OneWay}" Command="{Binding ToggleFavoriteCommand}" VerticalAlignment="Center" Margin="12,0,0,0"/>
+                            </Grid>
+                            <Border Grid.Row="1" Background="#171113" BorderBrush="#422327" BorderThickness="1" Padding="9,7" Margin="0,10,0,0">
+                                <StackPanel>
+                                    <TextBlock Text="{Binding StateText}" FontWeight="SemiBold"/>
+                                    <TextBlock Text="{Binding DetailsText}" Style="{StaticResource Muted}" Margin="0,3,0,0"/>
+                                </StackPanel>
+                            </Border>
+                            <Grid Grid.Row="2" Margin="0,9,0,0">
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                <TextBlock Text="{Binding LastSuccessText}" Style="{StaticResource Muted}" FontSize="10" VerticalAlignment="Center"/>
+                                <Button Grid.Column="1" Content="Удалить" Command="{Binding RemoveCommand}" Background="#302326" Padding="10,5" Margin="8,0,0,0"/>
+                            </Grid>
+                        </Grid>
+                    </Grid>
+                </Border>
+            </DataTemplate></ItemsControl.ItemTemplate></ItemsControl></ScrollViewer>
+        </DockPanel>
+    </DataTemplate>
+
+    <!-- Игроки -->
+    <DataTemplate DataType="{x:Type vm:PlayersViewModel}">
+        <DockPanel Margin="24">
+            <StackPanel DockPanel.Dock="Top">
+                <TextBlock Text="МОНИТОРИНГ / STEAM" Style="{StaticResource Eyebrow}" Margin="0,0,0,4"/>
+                <TextBlock Text="Игроки Steam" Style="{StaticResource H1}"/>
+                <TextBlock Style="{StaticResource Muted}" Text="Публичные данные Steam Web API (нужен ваш ключ в «Настройках»). Если профиль или детали игры скрыты, приложение так и покажет — «в Rust сейчас» выводится только когда Steam это сообщает."/>
+                <WrapPanel Margin="0,12,0,4">
+                    <StackPanel><TextBlock Text="SteamID64" Style="{StaticResource Muted}"/><TextBox Width="200" Text="{Binding NewSteamId, UpdateSourceTrigger=PropertyChanged}"/></StackPanel>
+                    <StackPanel><TextBlock Text="Метка" Style="{StaticResource Muted}"/><TextBox Width="160" Text="{Binding NewLabel, UpdateSourceTrigger=PropertyChanged}"/></StackPanel>
+                    <Button Content="Добавить" Command="{Binding AddCommand}" VerticalAlignment="Bottom" Margin="0,0,8,0"/>
+                    <Button Content="Проверить сейчас" Command="{Binding RefreshAllCommand}" VerticalAlignment="Bottom" Background="#3A424B"/>
+                </WrapPanel>
+                <TextBlock Text="{Binding Error}" Style="{StaticResource ErrorText}" Margin="0,0,0,8"/>
+                <TextBlock Style="{StaticResource Muted}" Text="Профилей пока нет." Visibility="{Binding IsEmpty, Converter={StaticResource BoolVis}}"/>
+            </StackPanel>
+            <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="0,8,4,0"><ItemsControl ItemsSource="{Binding Items}"><ItemsControl.ItemTemplate><DataTemplate>
+                <Border Background="{StaticResource PanelGradient}" BorderBrush="#713035" BorderThickness="1" Padding="0" Margin="0,0,0,11" SnapsToDevicePixels="True">
+                    <Grid>
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="5"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                        <Border Grid.Column="0" Background="{StaticResource AccentGradient}"/>
+                        <Grid Grid.Column="1" Margin="15,12,14,12">
+                            <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                            <Grid>
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                <StackPanel>
+                                    <TextBlock Text="STEAM PLAYER / WATCHLIST" Foreground="{StaticResource Accent}" FontSize="9" FontWeight="Bold"/>
+                                    <TextBlock Text="{Binding Title}" FontSize="16" FontWeight="Bold" TextTrimming="CharacterEllipsis" Margin="0,3,0,0"/>
+                                </StackPanel>
+                                <Button Grid.Column="1" Content="УДАЛИТЬ" Command="{Binding RemoveCommand}" Background="#302326" Padding="11,6" VerticalAlignment="Center" Margin="12,0,0,0" FontSize="10"/>
+                            </Grid>
+                            <Border Grid.Row="1" Background="#171113" BorderBrush="#422327" BorderThickness="1" Padding="10,8" Margin="0,10,0,0">
+                                <StackPanel>
+                                    <TextBlock Text="{Binding StatusText}" FontWeight="Bold" FontSize="12"/>
+                                    <TextBlock Text="{Binding DetailsText}" Style="{StaticResource Muted}" FontSize="11" TextWrapping="Wrap" Margin="0,4,0,0"/>
+                                </StackPanel>
+                            </Border>
+                        </Grid>
+                    </Grid>
+                </Border>
+            </DataTemplate></ItemsControl.ItemTemplate></ItemsControl></ScrollViewer>
+        </DockPanel>
+    </DataTemplate>
+
+    <!-- О программе -->
+    <DataTemplate DataType="{x:Type vm:AboutViewModel}">
+        <ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel Margin="24" MaxWidth="640" HorizontalAlignment="Left">
+            <TextBlock Text="О программе" Style="{StaticResource H1}"/>
+            <TextBlock Text="{Binding ProductName}" FontSize="20" FontWeight="SemiBold" Margin="0,4,0,8"/>
+            <TextBlock Text="Версия" Style="{StaticResource Muted}"/><TextBlock Text="{Binding Version}" Margin="0,0,0,6"/>
+            <TextBlock Text="Дата обновления" Style="{StaticResource Muted}"/><TextBlock Text="{Binding ReleaseDate}" Margin="0,0,0,6"/>
+            <TextBlock Text="Авторство" Style="{StaticResource Muted}"/><TextBlock Text="{Binding Author}" Margin="0,0,0,6"/>
+            <TextBlock Text="Контакты (Telegram)" Style="{StaticResource Muted}"/>
+            <StackPanel Orientation="Horizontal" Margin="0,2,0,6">
+                <TextBlock Text="{Binding TelegramHandle}" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                <Button Content="Написать в Telegram" Command="{Binding OpenUrlCommand}" CommandParameter="{Binding TelegramUrl}" Padding="10,2"/>
+            </StackPanel>
+            <TextBlock Text="Поддержать развитие" Style="{StaticResource Muted}" Margin="0,8,0,0"/>
+            <TextBlock Text="Программа бесплатная. Добровольное пожертвование поможет её развитию — спасибо!" TextWrapping="Wrap" Margin="0,2,0,6"/>
+            <Button Content="Добровольное пожертвование" Command="{Binding OpenUrlCommand}" CommandParameter="{Binding DonateUrl}" HorizontalAlignment="Left" Padding="14,4"/>
+            <TextBlock Text="Источники данных" Style="{StaticResource H1}" Margin="0,22,0,6" FontSize="16"/>
+            <ItemsControl ItemsSource="{Binding Sources}"><ItemsControl.ItemTemplate><DataTemplate>
+                <DockPanel Margin="0,0,0,8">
+                    <Button DockPanel.Dock="Right" Content="Открыть" Padding="8,1" VerticalAlignment="Top" Margin="10,0,0,0"
+                            Command="{Binding DataContext.OpenUrlCommand, RelativeSource={RelativeSource AncestorType=ScrollViewer}}" CommandParameter="{Binding Url}">
+                        <Button.Style><Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}"><Style.Triggers>
+                            <DataTrigger Binding="{Binding Url}" Value="{x:Null}"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger>
+                        </Style.Triggers></Style></Button.Style>
+                    </Button>
+                    <StackPanel>
+                        <TextBlock Text="{Binding Name}" FontWeight="SemiBold"/>
+                        <TextBlock Text="{Binding Purpose}" Style="{StaticResource Muted}" TextWrapping="Wrap"/>
+                    </StackPanel>
+                </DockPanel>
+            </DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
+            <TextBlock Text="Программа не читает память игры, не внедряется в процесс Rust и не обходит EAC. Ключи API хранятся на вашем компьютере в зашифрованном виде (DPAPI)." Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,14,0,0" FontSize="11"/>
+        </StackPanel></ScrollViewer>
+    </DataTemplate>
+
+    <!-- Настройки -->
+    <DataTemplate DataType="{x:Type vm:SettingsViewModel}">
+        <ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel Margin="24" MaxWidth="560" HorizontalAlignment="Left">
+            <TextBlock Text="Настройки" Style="{StaticResource H1}"/>
+            <TextBlock Text="Интервал опроса серверов, с" Style="{StaticResource Muted}"/><TextBox Text="{Binding ServerPollSeconds, UpdateSourceTrigger=LostFocus}"/>
+            <TextBlock Text="Интервал опроса Steam, с" Style="{StaticResource Muted}" Margin="0,8,0,0"/><TextBox Text="{Binding SteamPollSeconds, UpdateSourceTrigger=LostFocus}"/>
+            <TextBlock Text="Тайм-аут запроса, с" Style="{StaticResource Muted}" Margin="0,8,0,0"/><TextBox Text="{Binding RequestTimeoutSeconds, UpdateSourceTrigger=LostFocus}"/>
+            <CheckBox Content="Опрашивать серверы" IsChecked="{Binding ServerMonitoringEnabled}" Margin="0,12,0,0"/>
+            <CheckBox Content="Опрашивать Steam" IsChecked="{Binding SteamMonitoringEnabled}"/>
+                        <CheckBox Content="Сворачивать в трей при закрытии окна" IsChecked="{Binding CloseToTray}"/>
+            <TextBlock Text="Ключ Steam Web API" FontWeight="SemiBold" Margin="0,16,0,2"/>
+            <TextBlock Text="{Binding KeyStatus}" Style="{StaticResource Muted}"/>
+            <TextBox Text="{Binding SteamKeyInput, UpdateSourceTrigger=PropertyChanged}" Margin="0,4,0,0"/>
+            <TextBlock Text="Ключ RustMaps API" FontWeight="SemiBold" Margin="0,16,0,2"/>
+            <TextBlock Text="{Binding RustMapsKeyStatus}" Style="{StaticResource Muted}"/>
+            <TextBox Text="{Binding RustMapsKeyInput, UpdateSourceTrigger=PropertyChanged}" Margin="0,4,0,0"/>
+            <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                <Button Content="Получить ключ на rustmaps.com" Command="{Binding OpenRustMapsDashboardCommand}" Background="#3A424B"/>
+                <Button Content="Удалить ключ RustMaps" Command="{Binding DeleteRustMapsKeyCommand}" Background="#3A424B"/>
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
+                <Button Content="Сохранить" Command="{Binding SaveCommand}"/>
+                <Button Content="Удалить ключ" Command="{Binding DeleteKeyCommand}" Background="#3A424B"/>
+            </StackPanel>
+            <TextBlock Text="{Binding Message}" Style="{StaticResource Muted}" Margin="0,6,0,0"/>
+            <TextBlock Text="Наблюдение за игроками (Steam Query)" FontWeight="SemiBold" Margin="0,20,0,2"/>
+            <TextBlock Text="Интервал проверки игроков, с (не меньше 30)" Style="{StaticResource Muted}" Margin="0,8,0,0"/><TextBox Text="{Binding WatchPollSeconds, UpdateSourceTrigger=LostFocus}"/>
+            <TextBlock Text="Подтверждений отсутствия для «Выход подтверждён»" Style="{StaticResource Muted}" Margin="0,8,0,0"/><TextBox Text="{Binding AbsenceConfirmations, UpdateSourceTrigger=LostFocus}"/>
+            <TextBlock Text="Мин. интервал между уведомлениями, с" Style="{StaticResource Muted}" Margin="0,8,0,0"/><TextBox Text="{Binding NotifyMinIntervalSeconds, UpdateSourceTrigger=LostFocus}"/>
+            <TextBlock Text="Внешние каналы (Telegram / Discord)" FontWeight="SemiBold" Margin="0,16,0,2"/>
+            <TextBlock Style="{StaticResource Muted}" Text="Какие события и каким способом показывать — на вкладке «Уведомления» (по умолчанию всё выключено)."/>
+            <CheckBox Content="Telegram" IsChecked="{Binding TelegramEnabled}"/>
+            <TextBlock Text="Токен бота Telegram" Style="{StaticResource Muted}"/><TextBox Text="{Binding TelegramTokenInput, UpdateSourceTrigger=PropertyChanged}"/>
+            <TextBlock Text="Chat ID" Style="{StaticResource Muted}" Margin="0,6,0,0"/><TextBox Text="{Binding TelegramChatId, UpdateSourceTrigger=PropertyChanged}"/>
+            <Button Content="Проверить Telegram" Command="{Binding TestTelegramCommand}" HorizontalAlignment="Left" Margin="0,6,0,0"/>
+            <CheckBox Content="Discord" IsChecked="{Binding DiscordEnabled}" Margin="0,10,0,0"/>
+            <TextBlock Text="URL вебхука Discord" Style="{StaticResource Muted}"/><TextBox Text="{Binding DiscordWebhookInput, UpdateSourceTrigger=PropertyChanged}"/>
+            <Button Content="Проверить Discord" Command="{Binding TestDiscordCommand}" HorizontalAlignment="Left" Margin="0,6,0,0"/>
+            <TextBlock Text="{Binding IntegrationStatus}" Style="{StaticResource Muted}" Margin="0,8,0,0"/>
+            <TextBlock Text="Данные" FontWeight="SemiBold" Margin="0,16,0,4"/>
+            <CheckBox Content="Включать историю событий в экспорт" IsChecked="{Binding ExportActivity}"/>
+            <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                <Button Content="Экспорт" Command="{Binding ExportDataCommand}"/>
+                <Button Content="Импорт" Command="{Binding ImportDataCommand}" Background="#3A424B"/>
+                <Button Content="Резервная копия БД" Command="{Binding BackupDatabaseCommand}" Background="#3A424B"/>
+            </StackPanel>
+            <TextBlock Text="Диагностика источников" FontWeight="SemiBold" Margin="0,20,0,4"/>
+            <Button Content="Обновить" Command="{Binding RefreshDiagnosticsCommand}" HorizontalAlignment="Left"/>
+            <ItemsControl ItemsSource="{Binding Diagnostics}" Margin="0,8,0,0"><ItemsControl.ItemTemplate><DataTemplate><TextBlock Text="{Binding}" Style="{StaticResource Muted}" FontSize="12"/></DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
+        </StackPanel></ScrollViewer>
+    </DataTemplate>
+    <!-- Наблюдение -->
+    <DataTemplate DataType="{x:Type vm:WatchViewModel}">
+        <ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel Margin="24">
+            <TextBlock Text="Наблюдение за игроками" Style="{StaticResource H1}"/>
+            <TextBlock Style="{StaticResource Muted}" Text="Данные Steam Query (A2S): ник и время, которое сообщил сервер; SteamID не передаётся, игрок определяется по нику. Время проверки не равно точному времени входа или выхода. «Выход подтверждён» — только после нескольких успешных проверок подряд; ошибки сети в счёт не идут."/>
+            <Border Style="{StaticResource CardBorder}" Margin="0,12,0,10"><TextBlock Text="{Binding Summary}" TextWrapping="Wrap"/></Border>
+            <TextBlock Text="{Binding Message}" Style="{StaticResource ErrorText}" Margin="0,0,0,6"/>
+
+            <TextBlock Text="1. Сервер" FontWeight="SemiBold"/>
+            <WrapPanel Margin="0,4,0,4">
+                <ComboBox Width="260" ItemsSource="{Binding Servers}" SelectedItem="{Binding SelectedServer}" Margin="0,0,8,0"/>
+                <Button Content="Удалить сервер" Command="{Binding RemoveServerCommand}" Background="{StaticResource Line}" Margin="0,0,16,0"
+                        ToolTip="Удаляет выбранный сервер и всех наблюдаемых на нём игроков; сервер пропадёт и со вкладки «Серверы»"/>
+                <TextBox Width="200" Text="{Binding ServerQuery, UpdateSourceTrigger=PropertyChanged}"/>
+                <Button Content="Найти сервер" Command="{Binding SearchServersCommand}"/>
+            </WrapPanel>
+            <TextBlock Style="{StaticResource Muted}" Text="Серверов нет: найдите сервер по названию и добавьте." Visibility="{Binding NoServers, Converter={StaticResource BoolVis}}"/>
+            <ItemsControl ItemsSource="{Binding ServerResults}"><ItemsControl.ItemTemplate><DataTemplate>
+                <DockPanel Margin="0,2">
+                    <Button DockPanel.Dock="Right" Content="Добавить" Margin="8,0,0,0"
+                            Command="{Binding DataContext.AddServerCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}" CommandParameter="{Binding}"/>
+                    <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                </DockPanel></DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
+
+            <TextBlock Text="2. Группы" FontWeight="SemiBold" Margin="0,14,0,0"/>
+            <WrapPanel Margin="0,4,0,4">
+                <TextBox Width="150" Text="{Binding NewGroupName, UpdateSourceTrigger=PropertyChanged}"/>
+                <TextBox Width="80" Text="{Binding NewGroupColor, UpdateSourceTrigger=PropertyChanged}" ToolTip="Цвет #RRGGBB"/>
+                <TextBox Width="60" Text="{Binding NewGroupThreshold, UpdateSourceTrigger=PropertyChanged}" ToolTip="Порог: сколько игроков группы на сервере"/>
+                <Button Content="Создать группу" Command="{Binding AddGroupCommand}"/>
+            </WrapPanel>
+            <ItemsControl ItemsSource="{Binding Groups}"><ItemsControl.ItemTemplate><DataTemplate>
+                <DockPanel Margin="0,2">
+                    <Button DockPanel.Dock="Right" Content="Удалить" Background="#3A424B" Margin="8,0,0,0"
+                            Command="{Binding DataContext.DeleteGroupCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}" CommandParameter="{Binding}"/>
+                    <TextBlock><Run Text="■ " Foreground="{Binding Color}"/><Run Text="{Binding Name, Mode=OneWay}"/><Run Text="  порог: "/><Run Text="{Binding Threshold, Mode=OneWay}"/></TextBlock>
+                </DockPanel></DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
+
+            <TextBlock Text="3. Добавить игрока в наблюдение" FontWeight="SemiBold" Margin="0,14,0,0"/>
+            <TextBlock Style="{StaticResource Muted}" Margin="0,4,0,4" TextWrapping="Wrap" Text="Вставьте SteamID64 или ссылку на профиль Steam. Ник берётся из Steam, а наблюдение привязывается к SteamID64, поэтому следим именно за этим человеком, а не за совпадением ника."/>
+            <WrapPanel Margin="0,0,0,4">
+                <TextBox Width="380" Text="{Binding SteamAddInput, UpdateSourceTrigger=PropertyChanged}" ToolTip="https://steamcommunity.com/id/имя  или  https://steamcommunity.com/profiles/7656119…  или SteamID64"/>
+                <ComboBox Width="150" ItemsSource="{Binding Groups}" DisplayMemberPath="Name" SelectedItem="{Binding AssignGroup}" Margin="8,0,8,0"/>
+                <Button Content="Добавить в наблюдение" Command="{Binding AddBySteamCommand}"/>
+            </WrapPanel>
+
+            <TextBlock Text="Список наблюдения" FontWeight="SemiBold" Margin="0,14,0,0"/>
+            <WrapPanel Margin="0,4,0,6">
+                <TextBox Width="220" Text="{Binding FilterText, UpdateSourceTrigger=PropertyChanged}" ToolTip="Фильтр: имя, SteamID, статус"/>
+                <ComboBox Width="150" ItemsSource="{Binding Groups}" DisplayMemberPath="Name" SelectedItem="{Binding FilterGroup}" Margin="0,0,8,0"/>
+                <Button Content="Сбросить фильтр" Command="{Binding ClearGroupFilterCommand}" Background="#3A424B"/>
+            </WrapPanel>
+            <ItemsControl ItemsSource="{Binding Items}"><ItemsControl.ItemTemplate><DataTemplate>
+                <Border Style="{StaticResource CardBorder}"><StackPanel>
+                    <DockPanel>
+                        <TextBlock DockPanel.Dock="Right" Text="{Binding StatusText}" Foreground="{StaticResource Accent}" FontWeight="SemiBold"/>
+                        <TextBlock FontSize="15" FontWeight="SemiBold"><Run Text="■ " Foreground="{Binding IndicatorColor}" ToolTip="{Binding IndicatorTip}"/><Run Text="■ " Foreground="{Binding Color}"/><Run Text="{Binding Name, Mode=OneWay}"/><Run Text="  "/><Run Text="{Binding GroupName, Mode=OneWay}" Foreground="{StaticResource MutedBrush}"/></TextBlock>
+                    </DockPanel>
+                    <TextBlock Text="{Binding SteamText}" Style="{StaticResource Muted}"/>
+                    <TextBlock Text="{Binding IdentityText}" Style="{StaticResource Muted}" FontSize="12" ToolTip="{Binding IndicatorTip}"/>
+                    <TextBlock Text="{Binding DetailsText}" Style="{StaticResource Muted}" FontSize="12"/>
+                    <WrapPanel Margin="0,6,0,0">
+                        <TextBox Width="190" Text="{Binding SteamInput, UpdateSourceTrigger=PropertyChanged}" ToolTip="SteamID64 игрока: ручная связь с ником (уровень «подтверждено пользователем»)"/>
+                        <Button Content="Связать SteamID64" Command="{Binding LinkSteamCommand}"/>
+                        <Button Content="Снять связь" Command="{Binding UnlinkSteamCommand}" Background="#3A424B"/>
+                    </WrapPanel>
+                    <TextBlock Text="{Binding LinkMessage}" Style="{StaticResource Muted}" FontSize="12" TextWrapping="Wrap"/>
+                    <WrapPanel Margin="0,8,0,0">
+                        <Button Content="Профиль (часы, ники)" Command="{Binding ShowProfileCommand}" Padding="8,3" FontSize="12" Margin="0,0,6,4"/>
+                        <Button Content="BattleMetrics" Command="{Binding OpenBattleMetricsCommand}" Padding="8,3" FontSize="12" Margin="0,0,6,4"/>
+                        <Button Content="Статистика (rustbans)" Command="{Binding OpenRustBansCommand}" Padding="8,3" FontSize="12" Margin="0,0,6,4"/>
+                        <Button Content="Где ещё наблюдался" Command="{Binding SearchAcrossCommand}" Padding="8,3" FontSize="12" Margin="0,0,6,4"/>
+                        <Button Content="История сессий" Command="{Binding ShowActivityCommand}" Padding="8,3" FontSize="12" Margin="0,0,6,4"/>
+                        <Button Content="Прекратить наблюдение" Command="{Binding RemoveCommand}" Background="#3A424B" Padding="8,3" FontSize="12" Margin="0,0,0,4"/>
+                    </WrapPanel>
+                </StackPanel></Border>
+            </DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
+
+            <TextBlock Text="{Binding ProfileTitle}" FontWeight="SemiBold" Margin="0,10,0,4" TextWrapping="Wrap"/>
+            <ItemsControl ItemsSource="{Binding ProfileLines}"><ItemsControl.ItemTemplate><DataTemplate><TextBlock Text="{Binding}" Style="{StaticResource Muted}" FontSize="12" TextWrapping="Wrap"/></DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
+
+            <TextBlock Text="{Binding SightingsTitle}" FontWeight="SemiBold" Margin="0,10,0,4" TextWrapping="Wrap"/>
+            <ItemsControl ItemsSource="{Binding SightingLines}"><ItemsControl.ItemTemplate><DataTemplate><TextBlock Text="{Binding}" Style="{StaticResource Muted}" FontSize="12" TextWrapping="Wrap"/></DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
+            <TextBlock Text="Последние подтверждённые события" FontWeight="SemiBold" Margin="0,10,0,4"/>
+            <ItemsControl ItemsSource="{Binding RecentEvents}"><ItemsControl.ItemTemplate><DataTemplate><TextBlock Text="{Binding}" Style="{StaticResource Muted}"/></DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
+
+            <TextBlock Text="{Binding ActivityTitle}" FontWeight="SemiBold" Margin="0,16,0,4"/>
+            <TextBlock Text="{Binding ActivityNote}" Style="{StaticResource Muted}"/>
+            <ItemsControl ItemsSource="{Binding Bars}" Margin="0,8,0,4"><ItemsControl.ItemsPanel><ItemsPanelTemplate><StackPanel Orientation="Horizontal"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate><DataTemplate><StackPanel Width="18" Margin="1,0" VerticalAlignment="Bottom" ToolTip="{Binding Hours, StringFormat=\{0:0.0\} ч}">
+                    <Border Height="{Binding Height}" Background="{StaticResource Accent}" VerticalAlignment="Bottom" MinHeight="1"/>
+                    <TextBlock Text="{Binding Label}" FontSize="8" Foreground="{StaticResource MutedBrush}" HorizontalAlignment="Center"/>
+                </StackPanel></DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
+            <ItemsControl ItemsSource="{Binding SessionLines}"><ItemsControl.ItemTemplate><DataTemplate><TextBlock Text="{Binding}" Style="{StaticResource Muted}" FontSize="12"/></DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
+        </StackPanel></ScrollViewer>
+    </DataTemplate>
+    <!-- Прогноз по наблюдениям (Чинук / вертолёт / аэрдроп) -->
+    <DataTemplate DataType="{x:Type vm:ForecastViewModel}">
+        <ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel Margin="24">
+            <TextBlock Text="{Binding Title}" Style="{StaticResource H1}"/>
+            <TextBlock Text="{Binding Hint}" Style="{StaticResource Muted}"/>
+            <StackPanel Orientation="Horizontal" Margin="0,12,0,6">
+                <ComboBox Width="260" ItemsSource="{Binding Servers}" SelectedItem="{Binding SelectedServer}" Margin="0,0,8,0"/>
+                <Button Content="{Binding ButtonText}" Command="{Binding RecordCommand}" FontSize="15" Padding="18,8"/>
+            </StackPanel>
+            <TextBlock Style="{StaticResource Muted}" Text="Серверов нет — добавьте сервер на вкладке «Серверы». Наблюдения хранятся отдельно для каждого сервера." Visibility="{Binding NoServers, Converter={StaticResource BoolVis}}"/>
+            <TextBlock Text="{Binding Error}" Style="{StaticResource ErrorText}"/>
+            <Border Style="{StaticResource CardBorder}" Margin="0,8,0,10"><StackPanel>
+                <TextBlock Text="{Binding NextText}" FontSize="18" FontWeight="SemiBold"/>
+                <TextBlock Text="{Binding RangeText}"/>
+                <TextBlock Text="{Binding ConfidenceText}"/>
+                <TextBlock Text="{Binding LastText}" Style="{StaticResource Muted}" Margin="0,6,0,0"/>
+                <TextBlock Text="{Binding CountText}" Style="{StaticResource Muted}"/>
+                <TextBlock Text="{Binding ReasonText}" Style="{StaticResource Muted}" FontStyle="Italic"/>
+                <TextBlock Text="{Binding NotifyText}" Style="{StaticResource Muted}" Margin="0,6,0,0"/>
+            </StackPanel></Border>
+            <TextBlock Text="История наблюдений (можно исправить время или удалить)" FontWeight="SemiBold" Margin="0,4,0,4"/>
+            <ItemsControl ItemsSource="{Binding Items}"><ItemsControl.ItemTemplate><DataTemplate>
+                <StackPanel Margin="0,0,0,6">
+                    <DockPanel>
+                        <Button DockPanel.Dock="Right" Content="Удалить" Command="{Binding DeleteCommand}" Background="#3A424B" Margin="8,0,0,0"/>
+                        <Button DockPanel.Dock="Right" Content="Сохранить" Command="{Binding SaveCommand}" Margin="8,0,0,0"/>
+                        <TextBox Text="{Binding TimeText, UpdateSourceTrigger=PropertyChanged}" Width="180" HorizontalAlignment="Left"/>
+                    </DockPanel>
+                    <TextBlock Text="{Binding Error}" Style="{StaticResource ErrorText}"/>
+                </StackPanel></DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
+        </StackPanel></ScrollViewer>
+    </DataTemplate>
+
+    <!-- Bradley: отсчёт после уничтожения -->
+    <DataTemplate DataType="{x:Type vm:BradleyViewModel}">
+        <ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel Margin="24">
+            <TextBlock Text="Bradley — отсчёт после уничтожения" Style="{StaticResource H1}"/>
+            <TextBlock Style="{StaticResource Muted}" Text="Отсчёт запускается только кнопкой «Bradley уничтожен». Универсального времени респавна нет: оно зависит от сервера и плагинов, поэтому интервал задаёте вы для каждого сервера. Результат — оценка, а не подтверждение появления."/>
+            <StackPanel Orientation="Horizontal" Margin="0,12,0,6">
+                <ComboBox Width="260" ItemsSource="{Binding Servers}" SelectedItem="{Binding SelectedServer}" Margin="0,0,8,0"/>
+                <Button Content="Bradley уничтожен" Command="{Binding DestroyedCommand}" FontSize="15" Padding="18,8"/>
+            </StackPanel>
+            <TextBlock Style="{StaticResource Muted}" Text="Серверов нет — добавьте сервер на вкладке «Серверы»." Visibility="{Binding NoServers, Converter={StaticResource BoolVis}}"/>
+            <WrapPanel Margin="0,4,0,4">
+                <StackPanel><TextBlock Text="Интервал респавна, мин (от)" Style="{StaticResource Muted}"/><TextBox Width="110" Text="{Binding MinText, UpdateSourceTrigger=PropertyChanged}"/></StackPanel>
+                <StackPanel><TextBlock Text="до, мин (необязательно)" Style="{StaticResource Muted}"/><TextBox Width="110" Text="{Binding MaxText, UpdateSourceTrigger=PropertyChanged}"/></StackPanel>
+                <Button Content="Сохранить интервал" Command="{Binding SaveIntervalCommand}" VerticalAlignment="Bottom" Margin="0,0,8,0"/>
+            </WrapPanel>
+            <TextBlock Text="{Binding Error}" Style="{StaticResource ErrorText}"/>
+            <Border Style="{StaticResource CardBorder}" Margin="0,8,0,10"><StackPanel>
+                <TextBlock Text="{Binding CountdownText}" FontSize="16" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                <TextBlock Text="{Binding StatusText}" Style="{StaticResource Muted}"/>
+                <TextBlock Text="{Binding NotifyText}" Style="{StaticResource Muted}" Margin="0,6,0,0"/>
+            </StackPanel></Border>
+            <TextBlock Text="История уничтожений (можно исправить время или удалить)" FontWeight="SemiBold" Margin="0,4,0,4"/>
+            <ItemsControl ItemsSource="{Binding Items}"><ItemsControl.ItemTemplate><DataTemplate>
+                <StackPanel Margin="0,0,0,6">
+                    <DockPanel>
+                        <Button DockPanel.Dock="Right" Content="Удалить" Command="{Binding DeleteCommand}" Background="#3A424B" Margin="8,0,0,0"/>
+                        <Button DockPanel.Dock="Right" Content="Сохранить" Command="{Binding SaveCommand}" Margin="8,0,0,0"/>
+                        <TextBox Text="{Binding TimeText, UpdateSourceTrigger=PropertyChanged}" Width="180" HorizontalAlignment="Left"/>
+                    </DockPanel>
+                    <TextBlock Text="{Binding Error}" Style="{StaticResource ErrorText}"/>
+                </StackPanel></DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
+        </StackPanel></ScrollViewer>
+    </DataTemplate>
+
+    <!-- Закрытый контейнер / событие -->
+    <DataTemplate DataType="{x:Type vm:ContainerViewModel}">
+        <ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel Margin="24">
+            <TextBlock Text="Закрытый контейнер / событие" Style="{StaticResource H1}"/>
+            <TextBlock Style="{StaticResource Muted}" Text="Ручной таймер: 15 минут с момента активации, предупреждение на 14-й минуте."/>
+            <StackPanel Orientation="Horizontal" Margin="0,12,0,6">
+                <TextBox Width="260" Text="{Binding Label, UpdateSourceTrigger=PropertyChanged}" ToolTip="Название (необязательно)"/>
+                <Button Content="Контейнер активирован" Command="{Binding ActivateCommand}"/>
+            </StackPanel>
+            <TextBlock Text="{Binding Error}" Style="{StaticResource ErrorText}"/>
+            <TextBlock Text="{Binding NotifyText}" Style="{StaticResource Muted}" Margin="0,0,0,8"/>
+            <TextBlock Style="{StaticResource Muted}" Text="Активных таймеров нет." Visibility="{Binding IsEmpty, Converter={StaticResource BoolVis}}"/>
+            <ItemsControl ItemsSource="{Binding Items}"><ItemsControl.ItemTemplate><DataTemplate>
+                <Border Style="{StaticResource CardBorder}"><DockPanel>
+                    <Button DockPanel.Dock="Right" Content="Удалить" Command="{Binding DeleteCommand}" Background="#3A424B" Margin="8,0,0,0"/>
+                    <StackPanel><TextBlock Text="{Binding Label}" FontWeight="SemiBold"/><TextBlock Text="{Binding RemainingText}" FontSize="28" FontWeight="Bold"/><TextBlock Text="{Binding StatusText}" Style="{StaticResource Muted}"/></StackPanel>
+                </DockPanel></Border></DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
+        </StackPanel></ScrollViewer>
+    </DataTemplate>
+
+    <!-- Гниение строительных объектов (калькулятор гниения) -->
+    <DataTemplate DataType="{x:Type vm:DecayViewModel}">
+        <ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel Margin="24">
+            <TextBlock Text="Гниение строительных объектов" Style="{StaticResource H1}"/>
+            <TextBlock Style="{StaticResource Muted}" Text="Приблизительное время до разрушения УЖЕ гниющего элемента по введённым вами данным. Содержимое шкафа и состояние сервера приложение не читает. Результат — оценка, а не факт."/>
+            <TextBlock Text="{Binding CountText}" FontWeight="SemiBold" Margin="0,10,0,0"/>
+            <TextBlock Text="{Binding NotifyText}" Style="{StaticResource Muted}"/>
+            <Border Style="{StaticResource CardBorder}" Margin="0,8,0,10"><StackPanel>
+                <TextBlock Text="{Binding FormTitle}" FontWeight="SemiBold" Margin="0,0,0,6"/>
+                <WrapPanel>
+                    <StackPanel><TextBlock Text="Название/метка" Style="{StaticResource Muted}"/><TextBox Width="190" Text="{Binding Label, UpdateSourceTrigger=PropertyChanged}"/></StackPanel>
+                    <StackPanel><TextBlock Text="Тип элемента" Style="{StaticResource Muted}"/><ComboBox Width="170" ItemsSource="{Binding ElementNames}" SelectedItem="{Binding Element}" Margin="0,0,8,0"/></StackPanel>
+                    <StackPanel><TextBlock Text="Материал" Style="{StaticResource Muted}"/><ComboBox Width="190" ItemsSource="{Binding MaterialNames}" SelectedIndex="{Binding MaterialIndex}" Margin="0,0,8,0"/></StackPanel>
+                    <StackPanel><TextBlock Text="Квадрат (H12)" Style="{StaticResource Muted}"/><TextBox Width="80" Text="{Binding Grid, UpdateSourceTrigger=PropertyChanged}"/></StackPanel>
+                    <StackPanel><TextBlock Text="Когда заметили гниение" Style="{StaticResource Muted}"/><TextBox Width="170" Text="{Binding NoticedText, UpdateSourceTrigger=PropertyChanged}"/></StackPanel>
+                    <StackPanel><TextBlock Text="Текущий HP" Style="{StaticResource Muted}"/><TextBox Width="90" Text="{Binding HpText, UpdateSourceTrigger=PropertyChanged}"/></StackPanel>
+                    <StackPanel><TextBlock Text="Макс. HP элемента" Style="{StaticResource Muted}"/><TextBox Width="110" Text="{Binding MaxHpText, UpdateSourceTrigger=PropertyChanged}"/></StackPanel>
+                </WrapPanel>
+                <TextBlock Style="{StaticResource Muted}" FontSize="12" Text="HP и макс. HP — на момент, когда вы заметили гниение. Без них точное время не считается (показывается только верхняя граница)."/>
+                <TextBlock Text="{Binding Error}" Style="{StaticResource ErrorText}"/>
+                <StackPanel Orientation="Horizontal" Margin="0,8,0,0"><Button Content="Сохранить" Command="{Binding SaveCommand}"/><Button Content="Очистить форму" Command="{Binding ClearFormCommand}" Background="#3A424B"/></StackPanel>
+            </StackPanel></Border>
+            <ItemsControl ItemsSource="{Binding Items}"><ItemsControl.ItemTemplate><DataTemplate>
+                <Border Style="{StaticResource CardBorder}"><StackPanel>
+                    <TextBlock Text="{Binding Title}" FontWeight="SemiBold" FontSize="15"/>
+                    <TextBlock Text="{Binding Headline}" FontSize="20" FontWeight="Bold" Margin="0,2"/>
+                    <ItemsControl ItemsSource="{Binding Lines}"><ItemsControl.ItemTemplate><DataTemplate><TextBlock Text="{Binding}" Style="{StaticResource Muted}" FontSize="12"/></DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
+                    <CheckBox Content="Уведомлять об этом объекте (за 5 минут)" IsChecked="{Binding Notify}" Margin="0,8,0,4"/>
+                    <StackPanel Orientation="Horizontal">
+                        <Button Content="Изменить" Command="{Binding EditCommand}"/>
+                        <Button Content="Отметить разрушенным" Command="{Binding DestroyedCommand}" Background="#3A424B"/>
+                        <Button Content="Удалить" Command="{Binding DeleteCommand}" Background="#3A424B"/>
+                    </StackPanel>
+                </StackPanel></Border></DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
+            <TextBlock Text="Параметры расчёта" FontWeight="SemiBold" Margin="0,14,0,2"/>
+            <TextBlock Style="{StaticResource Muted}" FontSize="12" Text="Время полного гниения — справочные значения из сторонних источников; официально и по исходному коду не подтверждены. Если ваш сервер отличается — измените."/>
+            <WrapPanel Margin="0,4,0,4">
+                <StackPanel><TextBlock Text="Дерево, ч" Style="{StaticResource Muted}"/><TextBox Width="70" Text="{Binding WoodH, UpdateSourceTrigger=PropertyChanged}"/></StackPanel>
+                <StackPanel><TextBlock Text="Камень, ч" Style="{StaticResource Muted}"/><TextBox Width="70" Text="{Binding StoneH, UpdateSourceTrigger=PropertyChanged}"/></StackPanel>
+                <StackPanel><TextBlock Text="Металл, ч" Style="{StaticResource Muted}"/><TextBox Width="70" Text="{Binding MetalH, UpdateSourceTrigger=PropertyChanged}"/></StackPanel>
+                <StackPanel><TextBlock Text="МВК, ч" Style="{StaticResource Muted}"/><TextBox Width="70" Text="{Binding HqmH, UpdateSourceTrigger=PropertyChanged}"/></StackPanel>
+                <StackPanel><TextBlock Text="Множитель decay сервера" Style="{StaticResource Muted}"/><TextBox Width="90" Text="{Binding ScaleText, UpdateSourceTrigger=PropertyChanged}"/></StackPanel>
+                <Button Content="Сохранить параметры" Command="{Binding SaveParamsCommand}" VerticalAlignment="Bottom"/>
+            </WrapPanel>
+            <TextBlock Text="{Binding ParamsMessage}" Style="{StaticResource Muted}"/>
+        </StackPanel></ScrollViewer>
+    </DataTemplate>
+
+    <!-- Уведомления -->
+    <DataTemplate DataType="{x:Type vm:NotificationsViewModel}">
+        <ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel Margin="24">
+            <TextBlock Text="Уведомления" Style="{StaticResource H1}"/>
+            <TextBlock Text="BRUTAL RED / EVENT CONTROL CENTER" Style="{StaticResource Eyebrow}" Margin="0,-4,0,10"/>
+            <TextBlock Style="{StaticResource Muted}" Text="По умолчанию всё выключено. У каждого события свои независимые переключатели: оверлей поверх игры и системные уведомления Windows. Отключение уведомления не останавливает таймеры, расчёты и историю — скрывается только показ."/>
+            <TextBlock Text="Игровые уведомления: Rust+ и наблюдаемые игроки" FontWeight="SemiBold" Margin="0,14,0,4"/>
+            <TextBlock Text="{Binding ChannelMessage}" Style="{StaticResource Muted}" TextWrapping="Wrap"/>
+            <ItemsControl ItemsSource="{Binding Channels}" Margin="0,6,0,0"><ItemsControl.ItemTemplate><DataTemplate>
+                <Border Style="{StaticResource DeviceCardBorder}" Padding="12"><DockPanel LastChildFill="True">
+                    <ComboBox DockPanel.Dock="Right" Width="200" ItemsSource="{Binding Options}" SelectedIndex="{Binding SelectedIndex}"/>
+                    <TextBlock Text="{Binding Title}" VerticalAlignment="Center"/>
+                </DockPanel></Border></DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
+            <TextBlock Text="Журнал доставки (реальный результат каждой отправки)" FontWeight="SemiBold" Margin="0,10,0,4"/>
+            <Border Style="{StaticResource CardBorder}" Padding="12"><ItemsControl ItemsSource="{Binding DeliveryLog}"><ItemsControl.ItemTemplate><DataTemplate><Border BorderBrush="{StaticResource Line}" BorderThickness="0,0,0,1" Padding="2,7"><DockPanel LastChildFill="True"><Border DockPanel.Dock="Left" Width="3" Background="{StaticResource Accent}" Margin="0,0,9,0"/><TextBlock Text="{Binding}" Style="{StaticResource Muted}" FontSize="12" TextWrapping="Wrap" VerticalAlignment="Center"/></DockPanel></Border></DataTemplate></ItemsControl.ItemTemplate></ItemsControl></Border>
+            <TextBlock Text="Остальные события" FontWeight="SemiBold" Margin="0,14,0,0"/>
+            <ItemsControl ItemsSource="{Binding Rows}" Margin="0,6,0,0"><ItemsControl.ItemTemplate><DataTemplate>
+                <Border Style="{StaticResource DeviceCardBorder}" Padding="12"><DockPanel LastChildFill="True">
+                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                        <CheckBox Content="Оверлей" IsChecked="{Binding Overlay}" Margin="8,0"/>
+                        <CheckBox Content="Windows" IsChecked="{Binding System}" Margin="8,0"/>
+                        <CheckBox Content="Telegram/Discord" IsChecked="{Binding External}" Margin="8,0" Visibility="{Binding Info.HasExternal, Converter={StaticResource BoolVis}}"/>
+                    </StackPanel>
+                    <StackPanel><TextBlock Text="{Binding Info.Title}" TextWrapping="Wrap" FontWeight="SemiBold"/><TextBlock Text="{Binding Info.Section}" Style="{StaticResource Eyebrow}" FontSize="9" Margin="0,3,0,0"/></StackPanel>
+                </DockPanel></Border></DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
+            <TextBlock Style="{StaticResource Muted}" Margin="0,12,0,0" Text="Оверлей (постоянная панель и плашки), позиция и диагностика — на вкладке «Оверлей»."/>
+        </StackPanel></ScrollViewer>
+    </DataTemplate>
+    <!-- Универсальный счётчик респавна РТ -->
+    <DataTemplate DataType="{x:Type vm:MonumentsViewModel}">
+        <ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel Margin="24">
+            <TextBlock Text="Респавн РТ" Style="{StaticResource H1}"/>
+            <TextBlock Style="{StaticResource Muted}" Text="Выберите РТ и добавьте в отслеживание. После первого уведомления о респавне нажмите «РТ респавн», после следующего — ещё раз: программа вычислит интервал между нажатиями и предскажет следующий респавн. Если пропустили два респавна подряд — «Сброс»."/>
+            <TextBlock Text="{Binding CatalogInfo}" Style="{StaticResource Muted}" FontSize="12" Margin="0,4,0,0"/>
+            <StackPanel Orientation="Horizontal" Margin="0,12,0,6">
+                <TextBlock Text="Сервер:" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                <ComboBox Width="280" ItemsSource="{Binding Servers}" SelectedItem="{Binding SelectedServer}"/>
+            </StackPanel>
+            <TextBlock Style="{StaticResource Muted}" Text="Серверов нет — добавьте сервер на вкладке «Серверы»." Visibility="{Binding NoServers, Converter={StaticResource BoolVis}}"/>
+            <WrapPanel Margin="0,4,0,4">
+                <TextBox Width="160" Text="{Binding FilterText, UpdateSourceTrigger=PropertyChanged}" ToolTip="Поиск по названию или группе"/>
+                <ComboBox Width="360" ItemsSource="{Binding Choices}" SelectedItem="{Binding SelectedChoice}" Margin="0,0,8,0">
+                </ComboBox>
+                <Button Content="Отслеживать выбранный РТ" Command="{Binding TrackCommand}"/>
+            </WrapPanel>
+            <WrapPanel Margin="0,0,0,4">
+                <TextBox Width="260" Text="{Binding CustomName, UpdateSourceTrigger=PropertyChanged}" ToolTip="Название РТ, которого нет в списке"/>
+                <Button Content="Добавить свой РТ" Command="{Binding TrackCustomCommand}" Background="#3A424B"/>
+            </WrapPanel>
+            <TextBlock Text="{Binding Error}" Style="{StaticResource ErrorText}"/>
+            <TextBlock Text="{Binding NotifyText}" Style="{StaticResource Muted}" Margin="0,2,0,8"/>
+            <ItemsControl ItemsSource="{Binding Items}"><ItemsControl.ItemTemplate><DataTemplate>
+                <Border Style="{StaticResource CardBorder}"><StackPanel>
+                    <DockPanel>
+                        <Button DockPanel.Dock="Right" Content="Убрать" Command="{Binding UntrackCommand}" Background="#3A424B" Margin="8,0,0,0"/>
+                        <TextBlock FontSize="16" FontWeight="SemiBold"><Run Text="{Binding Name, Mode=OneWay}"/><Run Text="  "/><Run Text="{Binding Subtitle, Mode=OneWay}" Foreground="{StaticResource MutedBrush}"/></TextBlock>
+                    </DockPanel>
+                    <TextBlock Text="{Binding NextText}" FontSize="18" FontWeight="SemiBold" Margin="0,6,0,0" TextWrapping="Wrap"/>
+                    <TextBlock Text="{Binding RangeText}"/>
+                    <TextBlock Text="{Binding ConfidenceText}"/>
+                    <TextBlock Text="{Binding LastText}" Style="{StaticResource Muted}" Margin="0,6,0,0"/>
+                    <TextBlock Text="{Binding CountText}" Style="{StaticResource Muted}"/>
+                    <TextBlock Text="{Binding HintText}" Style="{StaticResource Muted}" FontStyle="Italic"/>
+                    <StackPanel Orientation="Horizontal" Margin="0,8,0,4">
+                        <Button Content="РТ респавн" Command="{Binding PressCommand}" FontSize="15" Padding="18,8"/>
+                        <Button Content="Сброс" Command="{Binding ResetCommand}" Background="#3A424B" Padding="18,8"/>
+                    </StackPanel>
+                    <ItemsControl ItemsSource="{Binding Presses}"><ItemsControl.ItemTemplate><DataTemplate>
+                        <DockPanel Margin="0,1"><Button DockPanel.Dock="Right" Content="✕" Command="{Binding DeleteCommand}" Background="#3A424B" Padding="6,0" Margin="8,0,0,0"/><TextBlock Text="{Binding Text}" Style="{StaticResource Muted}" FontSize="12"/></DockPanel>
+                    </DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
+                </StackPanel></Border></DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
+        </StackPanel></ScrollViewer>
+    </DataTemplate>
+    <!-- Поиск сервера (Steam) + игроки сервера -->
+    <DataTemplate DataType="{x:Type vm:ServerBrowserViewModel}">
+        <ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel Margin="24">
+            <TextBlock Text="Поиск серверов Rust" Style="{StaticResource H1}"/>
+            <TextBlock Style="{StaticResource Muted}" Text="Начните вводить название — результаты появятся в списке. Выбор открывает мониторинг сервера: адрес подключения и список игроков по прямому запросу Steam A2S (если сервер его отдаёт)."/>
+            <StackPanel Margin="0,10,0,0" HorizontalAlignment="Left" Width="580">
+                <DockPanel>
+                    <Button DockPanel.Dock="Right" Content="Недавние" Command="{Binding OpenDropDownCommand}" Background="{StaticResource Line}" Margin="8,0,0,0"/>
+                <TextBox x:Name="SearchBox" Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" Margin="0" Padding="10,8" FontSize="14" ToolTip="Название сервера (минимум 2 символа)">
+                    <TextBox.InputBindings>
+                        <KeyBinding Key="Down" Command="{Binding MoveHighlightCommand}" CommandParameter="down"/>
+                        <KeyBinding Key="Up" Command="{Binding MoveHighlightCommand}" CommandParameter="up"/>
+                        <KeyBinding Key="Enter" Command="{Binding ChooseHighlightedCommand}"/>
+                        <KeyBinding Key="Escape" Command="{Binding CloseDropDownCommand}"/>
+                    </TextBox.InputBindings>
+                </TextBox>
+                </DockPanel>
+                <TextBlock Text="{Binding RequestInfo}" Style="{StaticResource Muted}" FontSize="11" Margin="2,4,0,0"/>
+                <Border Visibility="{Binding IsDropDownOpen, Converter={StaticResource BoolVis}}" MaxHeight="380" Background="{StaticResource Panel}" BorderBrush="{StaticResource Line}" BorderThickness="1" CornerRadius="4" Margin="0,4,0,8">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel>
+                            <TextBlock Text="{Binding ListTitle}" Style="{StaticResource Muted}" FontSize="11" Margin="10,6,10,2"/>
+                            <TextBlock Text="{Binding SearchStatus}" Style="{StaticResource Muted}" Margin="10,8"/>
+                            <Button Content="Повторить" Command="{Binding RetrySearchCommand}" Visibility="{Binding ShowRetry, Converter={StaticResource BoolVis}}" HorizontalAlignment="Left" Margin="10,0,0,8"/>
+                            <ItemsControl ItemsSource="{Binding Results}"><ItemsControl.ItemTemplate><DataTemplate>
+                                <Button CommandParameter="{Binding}" Command="{Binding DataContext.ChooseCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}">
+                                    <Button.Style><Style TargetType="Button" BasedOn="{StaticResource RowButton}"><Style.Triggers><DataTrigger Binding="{Binding IsHighlighted}" Value="True"><Setter Property="Background" Value="{StaticResource Hover}"/></DataTrigger></Style.Triggers></Style></Button.Style>
+                                    <StackPanel>
+                                        <TextBlock Text="{Binding Title}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                                        <TextBlock Text="{Binding Details}" Style="{StaticResource Muted}" FontSize="12" TextTrimming="CharacterEllipsis"/>
+                                        <TextBlock Style="{StaticResource Muted}" FontSize="11" TextTrimming="CharacterEllipsis"><Run Text="{Binding IdText, Mode=OneWay}"/><Run Text=" • "/><Run Text="{Binding Connect, Mode=OneWay}" FontFamily="Consolas"/></TextBlock>
+                                    </StackPanel>
+                                </Button>
+                            </DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
+                        </StackPanel></ScrollViewer>
+                    </Border>
+            </StackPanel>
+
+            <StackPanel Visibility="{Binding HasSelection, Converter={StaticResource BoolVis}}" Margin="0,16,0,0">
+                <TextBlock Text="{Binding ServerTitle}" FontSize="17" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                <TextBlock Text="{Binding ServerSubtitle}" Style="{StaticResource Muted}"/>
+                <DockPanel Margin="0,8,0,0" HorizontalAlignment="Left" Width="580">
+                    <Button DockPanel.Dock="Right" Content="Копировать" Command="{Binding CopyCommand}" IsEnabled="{Binding CanCopy}" Margin="8,0,0,0"/>
+                    <Border Background="{StaticResource Field}" BorderBrush="{StaticResource Line}" BorderThickness="1" CornerRadius="3" Padding="10,6"><TextBlock Text="{Binding ConnectText}" FontFamily="Consolas" TextTrimming="CharacterEllipsis"/></Border>
+                </DockPanel>
+                <TextBlock Text="{Binding CopyStatus}" Style="{StaticResource Muted}" FontSize="12"/>
+                <DockPanel Margin="0,6,0,0"><Button DockPanel.Dock="Right" Content="Открыть в «Наблюдение»" Command="{Binding OpenWatchCommand}" Background="{StaticResource Line}" Margin="8,0,0,0"/><TextBlock Text="{Binding TransferStatus}" Style="{StaticResource Muted}" FontSize="12" VerticalAlignment="Center"/></DockPanel>
+                <TextBlock Text="{Binding Message}" Style="{StaticResource Muted}" Margin="0,6,0,0"/>
+
+                <DockPanel Margin="0,16,0,2">
+                    <Button DockPanel.Dock="Right" Content="Обновить" Command="{Binding RefreshServerDetailsCommand}"/>
+                    <TextBlock Text="Сведения о сервере" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                </DockPanel>
+                <TextBlock Text="{Binding DetailsStatus}" Style="{StaticResource Muted}" FontSize="11"/>
+                <ItemsControl ItemsSource="{Binding ServerDetailLines}" Margin="0,6,0,0"><ItemsControl.ItemTemplate><DataTemplate><TextBlock Text="{Binding}" TextWrapping="Wrap" Margin="0,2"/></DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
+                <TextBlock Style="{StaticResource Muted}" FontSize="11" Margin="0,8,0,0" TextWrapping="Wrap" Text="Ники игроков здесь не показываются: сервер может отдавать вымышленные списки. Чтобы следить за конкретным человеком, добавьте его по SteamID64 на вкладке «Наблюдение»."/>
+            </StackPanel>
+        </StackPanel></ScrollViewer>
+    </DataTemplate>
+
+    <!-- Горячие клавиши -->
+    <DataTemplate DataType="{x:Type vm:HotkeysViewModel}">
+        <ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel Margin="24">
+            <TextBlock Text="Горячие клавиши" Style="{StaticResource H1}"/>
+            <TextBlock Style="{StaticResource Muted}" Text="Нажмите назначенное сочетание в любом окне (в том числе в игре) — программа запишет отметку. Приложение не обнаруживает событие само: отметку делаете вы, прогноз строится по интервалам между отметками и приблизителен."/>
+            <StackPanel Orientation="Horizontal" Margin="0,10,0,4">
+                <TextBlock Text="Сервер для отметок:" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                <ComboBox Width="300" ItemsSource="{Binding Servers}" SelectedItem="{Binding SelectedServer}"/>
+            </StackPanel>
+            <TextBlock Style="{StaticResource ErrorText}" Text="Сервер не выбран — отметки не записываются. Добавьте сервер на вкладке «Серверы» и выберите его здесь." Visibility="{Binding NoServers, Converter={StaticResource BoolVis}}"/>
+            <TextBlock Text="{Binding Banner}" Style="{StaticResource ErrorText}"/>
+            <Border Style="{StaticResource CardBorder}"><TextBlock Text="{Binding LastConfirmation}" TextWrapping="Wrap" MinHeight="18"/></Border>
+            <WrapPanel Margin="0,0,0,8">
+                <CheckBox Content="Подтверждение отметки в оверлее" IsChecked="{Binding ConfirmOverlay}" Margin="0,4,16,4"/>
+                <TextBlock Text="Предупреждать за, мин:" VerticalAlignment="Center" Margin="0,0,6,0"/><TextBox Width="50" Text="{Binding LeadMinutes, UpdateSourceTrigger=LostFocus}"/>
+                <Button Content="Сохранить" Command="{Binding SaveOptionsCommand}"/>
+            </WrapPanel>
+            <TextBlock Text="{Binding SettingsMessage}" Style="{StaticResource ErrorText}"/>
+            <ItemsControl ItemsSource="{Binding Rows}"><ItemsControl.ItemTemplate><DataTemplate>
+                <Border Style="{StaticResource CardBorder}"><StackPanel>
+                    <DockPanel>
+                        <Button DockPanel.Dock="Right" Content="Отметить сейчас" Command="{Binding MarkCommand}" Margin="8,0,0,0"/>
+                        <TextBlock Text="{Binding Name}" FontSize="15" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                    </DockPanel>
+                    <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                        <TextBox Width="190" Text="{Binding GestureText, Mode=OneWay}" svc:HotkeyCapture.Command="{Binding AssignCommand}" ToolTip="Нажмите сочетание клавиш (Ctrl/Alt/Win + клавиша или F-клавиша)"/>
+                        <Button Content="Очистить" Command="{Binding ClearCommand}" Background="{StaticResource Line}"/>
+                        <TextBlock Text="{Binding Status}" Style="{StaticResource Muted}" VerticalAlignment="Center" FontSize="12"/>
+                    </StackPanel>
+                    <TextBlock Text="{Binding Error}" Style="{StaticResource ErrorText}" FontSize="12"/>
+                    <TextBlock Margin="0,8,0,0" Style="{StaticResource Muted}"><Run Text="Последняя отметка: "/><Run Text="{Binding LastMark, Mode=OneWay}"/><Run Text="   Интервал: "/><Run Text="{Binding Interval, Mode=OneWay}"/></TextBlock>
+                    <TextBlock Text="{Binding Next, StringFormat='Следующее: {0}'}" FontWeight="SemiBold"/>
+                    <TextBlock Text="{Binding Confidence}" Style="{StaticResource Muted}" FontSize="12"/>
+                    <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                        <Button Content="Удалить последнюю отметку" Command="{Binding DeleteLastCommand}" Background="{StaticResource Line}" Padding="8,3" FontSize="12"/>
+                        <Button Content="Сбросить историю" Command="{Binding ResetCommand}" Background="{StaticResource Line}" Padding="8,3" FontSize="12"/>
+                    </StackPanel>
+                </StackPanel></Border></DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
+        </StackPanel></ScrollViewer>
+    </DataTemplate>
+
+    <!-- Оверлей -->
+    <DataTemplate DataType="{x:Type vm:OverlayViewModel}">
+        <ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel Margin="24" MaxWidth="640" HorizontalAlignment="Left">
+            <TextBlock Text="Оверлей" Style="{StaticResource H1}"/>
+            <TextBlock Style="{StaticResource Muted}" Text="Компактная панель поверх окна игры с выбранными таймерами и прогнозами. Это обычное окно Windows: оно не внедряется в Rust и не читает память игры. Работает поверх оконного и безрамочного режима; поверх эксклюзивного полноэкранного — нет."/>
+            <CheckBox Content="Показывать панель оверлея" IsChecked="{Binding HudVisible}" Margin="0,12,0,0"/>
+            <CheckBox Content="Показывать оверлей и плашки на мониторе, где открыто окно Rust" IsChecked="{Binding FollowRust}"/>
+            <CheckBox Content="Режим перемещения (перетащить окно, размер — за правый нижний угол); выключите, чтобы закрепить" IsChecked="{Binding MoveMode}"/>
+            <StackPanel Orientation="Horizontal" Margin="0,6,0,0"><TextBlock Text="Ширина, px:" VerticalAlignment="Center" Margin="0,0,6,0"/><TextBox Width="70" Text="{Binding Width, UpdateSourceTrigger=LostFocus}"/><Button Content="Сохранить" Command="{Binding SaveCommand}"/><Button Content="Сбросить позицию" Command="{Binding ResetPositionCommand}" Background="{StaticResource Line}"/></StackPanel>
+            <TextBlock Text="Что показывать (данные сервера, выбранного на вкладке «Горячие клавиши»)" FontWeight="SemiBold" Margin="0,14,0,4"/>
+            <ItemsControl ItemsSource="{Binding Items}"><ItemsControl.ItemTemplate><DataTemplate><CheckBox Content="{Binding Title}" IsChecked="{Binding Selected}"/></DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
+            <TextBlock Text="Временные плашки" FontWeight="SemiBold" Margin="0,14,0,4"/>
+            <CheckBox Content="Разрешить плашки (подтверждения и уведомления; что именно показывать — на вкладке «Уведомления»)" IsChecked="{Binding ToastsEnabled}"/>
+            <WrapPanel Margin="0,6,0,0">
+                <StackPanel><TextBlock Text="Угол по умолчанию" Style="{StaticResource Muted}" FontSize="11"/><ComboBox Width="170" ItemsSource="{Binding Corners}" SelectedIndex="{Binding Corner}"/></StackPanel>
+                <StackPanel><TextBlock Text="Показ, с" Style="{StaticResource Muted}" FontSize="11"/><TextBox Width="60" Text="{Binding Duration, UpdateSourceTrigger=LostFocus}"/></StackPanel>
+                <StackPanel><TextBlock Text="Отступ, px" Style="{StaticResource Muted}" FontSize="11"/><TextBox Width="60" Text="{Binding Margin, UpdateSourceTrigger=LostFocus}"/></StackPanel>
+                <StackPanel><TextBlock Text="Плашек сразу" Style="{StaticResource Muted}" FontSize="11"/><TextBox Width="60" Text="{Binding MaxVisible, UpdateSourceTrigger=LostFocus}"/></StackPanel>
+            </WrapPanel>
+            <StackPanel Orientation="Horizontal" Margin="0,8,0,0"><Button Content="Сохранить" Command="{Binding SaveCommand}"/><Button Content="Тестовая плашка" Command="{Binding ShowTestCommand}" Background="{StaticResource Line}"/><Button Content="Скрыть плашки" Command="{Binding HideToastsCommand}" Background="{StaticResource Line}"/></StackPanel>
+            <TextBlock Text="{Binding Message}" Style="{StaticResource Muted}" Margin="0,6,0,0"/>
+            <TextBlock Text="Диагностика" FontWeight="SemiBold" Margin="0,16,0,4"/>
+            <Button Content="Проверить оверлей" Command="{Binding DiagnoseCommand}" HorizontalAlignment="Left"/>
+            <ItemsControl ItemsSource="{Binding Report}" Margin="0,6,0,0"><ItemsControl.ItemTemplate><DataTemplate><TextBlock Text="{Binding}" Style="{StaticResource Muted}" FontSize="12"/></DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
+        </StackPanel></ScrollViewer>
+    </DataTemplate>
+    <!-- Rust+ -->
+    <DataTemplate DataType="{x:Type vm:RustPlusViewModel}">
+        <ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel Margin="24" MaxWidth="820" HorizontalAlignment="Left">
+            <TextBlock Text="Rust+" Style="{StaticResource H1}"/>
+            <TextBlock Style="{StaticResource Muted}" Text="Подключение к серверу через официальную систему Rust+ Companion: сопряжение выполняете вы (вход в Steam и подтверждение в игре). Приложение не обходит Steam Guard и защиту сервера, не читает память игры."/>
+
+            <Border Style="{StaticResource CardBorder}" BorderBrush="#B52A31" BorderThickness="2,1,1,1" Margin="0,12,0,8"><StackPanel>
+                <DockPanel>
+                    <TextBlock DockPanel.Dock="Right" Text="{Binding StateText}" FontWeight="SemiBold" Foreground="{Binding StateColor}"/>
+                    <TextBlock Text="Подключение" FontWeight="SemiBold"/>
+                </DockPanel>
+                <TextBlock Text="{Binding StatusMessage}" Style="{StaticResource Muted}" Margin="0,2,0,6"/>
+                <StackPanel Orientation="Horizontal">
+                    <ComboBox Width="320" ItemsSource="{Binding Servers}" SelectedItem="{Binding SelectedServer}"/>
+                    <Button Content="Подключиться" Command="{Binding ConnectCommand}"/>
+                    <Button Content="Отключиться" Command="{Binding DisconnectCommand}" Background="{StaticResource Line}"/>
+                    <Button Content="Удалить сервер" Command="{Binding DeleteServerCommand}" Background="{StaticResource Line}"/>
+                </StackPanel>
+                <TextBlock Style="{StaticResource Muted}" Text="Список заполняется после сопряжения (блок ниже)." Margin="0,6,0,0" FontSize="12"/>
+            </StackPanel></Border>
+
+            <Border Style="{StaticResource CardBorder}"><StackPanel>
+                <TextBlock Text="Сопряжение с новым сервером" FontWeight="SemiBold"/>
+                <TextBlock Style="{StaticResource Muted}" FontSize="12" Margin="0,2,0,6" Text="1) Вход через Steam (откроется окно входа внутри приложения; Steam Guard подтверждаете вы). 2) В игре: Esc → Rust+ → «Pair with server». Токен хранится зашифрованно (DPAPI)."/>
+                <StackPanel Orientation="Horizontal">
+                    <Button Content="1. Войти через Steam" Command="{Binding RegisterCommand}"/>
+                    <Button Content="2. Ждать сопряжения в игре" Command="{Binding WaitPairingCommand}"/>
+                    <Button Content="Отмена" Command="{Binding CancelPairingCommand}" Background="{StaticResource Line}"/>
+                </StackPanel>
+                <TextBlock Text="{Binding PairingStatus}" Style="{StaticResource Muted}" Margin="0,6,0,0"/>
+                <TextBlock Text="{Binding FcmStatus}" Style="{StaticResource Muted}" FontSize="11"/>
+                <TextBlock Text="{Binding FcmLastEvent}" Style="{StaticResource Muted}" FontSize="11" TextWrapping="Wrap"/>
+            </StackPanel></Border>
+
+            <Border Style="{StaticResource CardBorder}"><StackPanel>
+                <TextBlock Text="Сервер" FontWeight="SemiBold"/>
+                <TextBlock Text="{Binding ServerLine}" Margin="0,4,0,0" TextWrapping="Wrap"/>
+                <TextBlock Text="{Binding TimeLine}" Style="{StaticResource Muted}"/>
+                <TextBlock Text="{Binding UpdatedLine}" Style="{StaticResource Muted}" FontSize="11"/>
+            </StackPanel></Border>
+
+            <Border Style="{StaticResource CardBorder}"><StackPanel>
+                <DockPanel><Button DockPanel.Dock="Right" Content="RustMaps" Command="{Binding OpenRustMapsCommand}" Padding="10,2" Margin="0,0,6,0" ToolTip="Карта сервера с rustmaps.com: 3D, монументы, зоны, биомы. Сервер берётся из текущего подключения Rust+"/>
+                <Button DockPanel.Dock="Right" Content="Карта" Command="{Binding OpenMapCommand}" Padding="10,2" ToolTip="Карта сервера с сеткой, командой и событиями; можно включить «Поверх игры»"/>
+                <TextBlock Text="Команда" FontWeight="SemiBold" VerticalAlignment="Center"/></DockPanel>
+                <ItemsControl ItemsSource="{Binding Team}" Margin="0,4,0,0"><ItemsControl.ItemTemplate><DataTemplate><DockPanel Margin="0,2" ToolTip="{Binding Tip}">
+                    <Border Width="12" Height="12" Background="{Binding StateBrush}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                    <TextBlock Text="{Binding Cell}" DockPanel.Dock="Right" Style="{StaticResource Muted}" Margin="12,0,0,0" MinWidth="36"/>
+                    <TextBlock Text="{Binding Name}"/>
+                </DockPanel></DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
+                <TextBlock Style="{StaticResource Muted}" FontSize="12" Text="Данные команды показываются при активном соединении. Позиции берутся из Rust+ только если сервер их отдаёт."/>
+            </StackPanel></Border>
+
+            <Border Style="{StaticResource CardBorder}"><StackPanel>
+                <TextBlock Text="Умные устройства" FontWeight="SemiBold"/>
+                <TextBlock Style="{StaticResource Muted}" FontSize="12" Margin="0,2,0,6" TextWrapping="Wrap"
+                           Text="Нажмите Pair на устройстве в игре. OnEntityPairing — уведомление об уже выполненном сопряжении: протокол Rust+ не имеет команд accept/reject. «Проверить и добавить» выполняет реальный getEntityInfo; «Скрыть» действует только локально."/>
+                <ItemsControl ItemsSource="{Binding PairingRequests}"><ItemsControl.ItemTemplate><DataTemplate>
+                    <Border Background="{StaticResource Field}" BorderBrush="{StaticResource Accent}" BorderThickness="1" CornerRadius="4" Padding="10" Margin="0,4,0,6"><StackPanel>
+                        <TextBlock Text="Обнаружено сопряжение устройства" FontWeight="SemiBold" Foreground="{StaticResource Accent}"/>
+                        <TextBlock Text="{Binding Request.Name}" FontSize="16" FontWeight="SemiBold" Margin="0,3,0,0"/>
+                        <TextBlock Style="{StaticResource Muted}" FontSize="12"><Run Text="{Binding KindText, Mode=OneWay}"/><Run Text=" · "/><Run Text="{Binding ServerName, Mode=OneWay}"/></TextBlock>
+                        <TextBlock Text="{Binding EntityText}" Style="{StaticResource Muted}" FontSize="11"/>
+                        <StackPanel Orientation="Horizontal" Margin="0,7,0,0">
+                            <Button Content="Проверить и добавить" Command="{Binding VerifyCommand}"/>
+                            <Button Content="Скрыть" Command="{Binding DismissCommand}" Background="{StaticResource Line}" ToolTip="Только скрыть карточку; команда отклонения в Rust+ не поддерживается"/>
+                        </StackPanel>
+                        <TextBlock Text="{Binding ResultText}" Style="{StaticResource Muted}" FontSize="12" TextWrapping="Wrap"/>
+                    </StackPanel></Border>
+                </DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
+                <ItemsControl ItemsSource="{Binding Devices}"><ItemsControl.ItemTemplate><DataTemplate>
+                    <Border BorderBrush="{StaticResource Line}" BorderThickness="0,1,0,0" Padding="0,8" Margin="0,6,0,0"><StackPanel>
+                        <DockPanel>
+                            <StackPanel DockPanel.Dock="Right" HorizontalAlignment="Right">
+                                <TextBlock Text="{Binding StateText}" Foreground="{Binding StateColor}" FontWeight="SemiBold"/>
+                                <TextBlock Text="{Binding AvailabilityText}" Style="{StaticResource Muted}" FontSize="11" HorizontalAlignment="Right"/>
+                            </StackPanel>
+                            <ToggleButton DockPanel.Dock="Right" Style="{StaticResource BellToggle}" Tag="{Binding BellBrush}" IsChecked="{Binding AlarmNotify, Mode=TwoWay}" ToolTip="{Binding BellTip}" Width="32" Height="30" Margin="8,0"
+                                          Visibility="{Binding IsAlarm, Converter={StaticResource BoolVis}}"/>
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="{Binding TypeIcon}" FontSize="20" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                <Border Width="11" Height="11" Background="{Binding StateColor}" BorderBrush="{StaticResource Line}" BorderThickness="1" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                                <StackPanel>
+                                    <TextBox Width="220" Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}" ToolTip="Название" FontWeight="SemiBold"/>
+                                    <TextBlock Style="{StaticResource Muted}" FontSize="11"><Run Text="{Binding KindText, Mode=OneWay}"/><Run Text=" · "/><Run Text="{Binding ServerName, Mode=OneWay}"/></TextBlock>
+                                    <TextBlock Text="{Binding EntityText}" Style="{StaticResource Muted}" FontSize="10"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </DockPanel>
+                        <WrapPanel Margin="0,4,0,0">
+                            <TextBox Width="150" Text="{Binding Group, UpdateSourceTrigger=PropertyChanged}" ToolTip="Группа"/>
+                            <TextBox Width="260" Text="{Binding Note, UpdateSourceTrigger=PropertyChanged}" ToolTip="Заметка"/>
+                        </WrapPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                            <Button Content="Включить" Command="{Binding OnCommand}" Visibility="{Binding IsSwitch, Converter={StaticResource BoolVis}}" Padding="8,3"/>
+                            <Button Content="Выключить" Command="{Binding OffCommand}" Visibility="{Binding IsSwitch, Converter={StaticResource BoolVis}}" Padding="8,3"/>
+                            <Button Content="Обновить" Command="{Binding RefreshCommand}" Background="{StaticResource Line}" Padding="8,3"/>
+                            <Button Content="Сохранить" Command="{Binding SaveCommand}" Background="{StaticResource Line}" Padding="8,3"/>
+                            <Button Content="История" Command="{Binding HistoryCommand}" Background="{StaticResource Line}" Padding="8,3"/>
+                            <Button Content="Удалить" Command="{Binding DeleteCommand}" Background="{StaticResource Line}" Padding="8,3"/>
+                        </StackPanel>
+                        <TextBlock Text="{Binding ResultText}" Style="{StaticResource Muted}" FontSize="12"/>
+                        <TextBlock Text="{Binding HistoryText}" Style="{StaticResource Muted}" FontSize="11"/>
+                        <StackPanel Visibility="{Binding IsAlarm, Converter={StaticResource BoolVis}}" Margin="0,8,0,0">
+                            <DockPanel>
+                                <ComboBox DockPanel.Dock="Right" Width="200" ItemsSource="{Binding AlarmChannelOptions}" SelectedIndex="{Binding AlarmChannel}"/>
+                                <TextBlock Text="Уведомление при срабатывании" VerticalAlignment="Center"/>
+                            </DockPanel>
+                            <TextBlock Style="{StaticResource Muted}" FontSize="11" Margin="0,6,0,2" Text="Сообщение уведомления (показывается после названия устройства, общее для Overlay и Team Chat). Пусто — «СРАБОТАЛА СИГНАЛИЗАЦИЯ!»."/>
+                            <TextBox Text="{Binding AlarmText, UpdateSourceTrigger=PropertyChanged}" ToolTip="Например: Кто-то у входа!"/>
+                        </StackPanel>
+                    </StackPanel></Border>
+                </DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
+            </StackPanel></Border>
+
+            <Border Style="{StaticResource CardBorder}"><StackPanel>
+                <TextBlock Text="Командный чат" FontWeight="SemiBold"/>
+                <ScrollViewer MaxHeight="220" VerticalScrollBarVisibility="Auto" Margin="0,4,0,4"><ItemsControl ItemsSource="{Binding Chat}"><ItemsControl.ItemTemplate><DataTemplate><TextBlock Text="{Binding}" TextWrapping="Wrap" Margin="0,1"/></DataTemplate></ItemsControl.ItemTemplate></ItemsControl></ScrollViewer>
+                <DockPanel><Button DockPanel.Dock="Right" Content="Отправить" Command="{Binding SendChatCommand}" Margin="8,0,0,0"/><TextBox Text="{Binding ChatInput, UpdateSourceTrigger=PropertyChanged}" Margin="0"/></DockPanel>
+                <TextBlock Text="{Binding ChatStatus}" Style="{StaticResource Muted}" FontSize="12"/>
+                <TextBlock Style="{StaticResource Muted}" FontSize="11" Text="Показываются сообщения, пришедшие после подключения (история при подключении не загружается как новые)."/>
+            </StackPanel></Border>
+
+            <Border Style="{StaticResource CardBorder}"><StackPanel>
+                <TextBlock Text="Командный бот" FontWeight="SemiBold"/>
+                <TextBlock Style="{StaticResource Muted}" FontSize="12" Margin="0,2,0,6" Text="Отвечает в командном чате на команды (!time, !pop, !timer), пока есть соединение. По умолчанию выключен. Команда без данных от сервера сообщает об этом и ничего не выдумывает."/>
+                <CheckBox Content="Бот включён" IsChecked="{Binding BotEnabled}"/>
+                <StackPanel Orientation="Horizontal" Margin="0,4,0,4">
+                    <TextBlock Text="Префикс:" VerticalAlignment="Center" Margin="0,0,6,0"/><TextBox Width="50" Text="{Binding BotPrefix, UpdateSourceTrigger=PropertyChanged}"/>
+                    <TextBlock Text="Язык ответов:" VerticalAlignment="Center" Margin="8,0,6,0"/><ComboBox Width="80" ItemsSource="{Binding Languages}" SelectedItem="{Binding BotLanguage}"/>
+                </StackPanel>
+                <ItemsControl ItemsSource="{Binding BotCommands}"><ItemsControl.ItemTemplate><DataTemplate><CheckBox IsChecked="{Binding Enabled}"><TextBlock><Run Text="{Binding Name, Mode=OneWay}" FontWeight="SemiBold"/><Run Text=" — "/><Run Text="{Binding Description, Mode=OneWay}"/></TextBlock></CheckBox></DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
+                <Button Content="Сохранить" Command="{Binding SaveBotCommand}" HorizontalAlignment="Left" Margin="0,6,0,0"/>
+                <TextBlock Text="{Binding BotMessage}" Style="{StaticResource Muted}" FontSize="12"/>
+            </StackPanel></Border>
+        </StackPanel></ScrollViewer>
+    </DataTemplate>
+    <DataTemplate DataType="{x:Type vm:RustPlusDevicesViewModel}">
+        <ScrollViewer VerticalScrollBarVisibility="Auto"><StackPanel Margin="24">
+            <TextBlock Text="Rust+ Устройства" Style="{StaticResource H1}"/>
+            <TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,4,0,12"
+                       Text="Команды выполняются только из новых сообщений Team Chat через активное Rust+ подключение. Старый чат не исполняется. Управление доступно только для Smart Switch; Smart Alarm и Storage Monitor показываются в режиме чтения."/>
+
+            <Border Style="{StaticResource CardBorder}"><StackPanel>
+                <WrapPanel>
+                    <StackPanel Margin="0,0,12,6">
+                        <TextBlock Text="Сопряжённый сервер" Style="{StaticResource Muted}"/>
+                        <ComboBox Width="310" ItemsSource="{Binding Servers}" SelectedItem="{Binding SelectedServer}"/>
+                    </StackPanel>
+                    <StackPanel Margin="0,0,12,6">
+                        <TextBlock Text="Соединение" Style="{StaticResource Muted}"/>
+                        <TextBlock Text="{Binding ConnectionText}" FontWeight="SemiBold" Margin="0,7,0,0"/>
+                    </StackPanel>
+                </WrapPanel>
+                <CheckBox Content="Обрабатывать новые команды Team Chat (снимите галочку для временной паузы)"
+                          IsChecked="{Binding ProcessingEnabled}" Margin="0,4,0,6"/>
+                <StackPanel Orientation="Horizontal">
+                    <Button Content="Обновить устройства" Command="{Binding RefreshAllCommand}"/>
+                    <Button Content="Сохранить все настройки" Command="{Binding SaveAllCommand}" Background="{StaticResource Line}"/>
+                </StackPanel>
+                <TextBlock Text="{Binding StatusMessage}" Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,8,0,0"/>
+                <TextBlock Style="{StaticResource Muted}" FontSize="11" TextWrapping="Wrap" Margin="0,4,0,0"
+                           Text="Для включения обработки также отметьте «Команды включены» у нужного переключателя. Сопряжение сервера выполняется на вкладке «Rust+»; карточки и список устройств общие для обеих вкладок."/>
+            </StackPanel></Border>
+
+            <ItemsControl ItemsSource="{Binding PairingRequests}"><ItemsControl.ItemTemplate><DataTemplate>
+                <Border Style="{StaticResource DeviceAlertBorder}"><StackPanel>
+                    <TextBlock Text="Обнаружено сопряжение устройства" FontWeight="SemiBold" Foreground="{StaticResource Accent}"/>
+                    <TextBlock Text="{Binding Request.Name}" FontSize="16" FontWeight="SemiBold" Margin="0,3,0,0"/>
+                    <TextBlock Style="{StaticResource Muted}" FontSize="12"><Run Text="{Binding KindText, Mode=OneWay}"/><Run Text=" · "/><Run Text="{Binding ServerName, Mode=OneWay}"/><Run Text=" · "/><Run Text="{Binding EntityText, Mode=OneWay}"/></TextBlock>
+                    <TextBlock Style="{StaticResource Muted}" FontSize="11" TextWrapping="Wrap" Margin="0,4,0,0"
+                               Text="Pair уже выполнен в игре. Отдельных команд accept/reject в Rust+ нет: добавление следует после реального чтения getEntityInfo, а скрытие карточки является локальным."/>
+                    <StackPanel Orientation="Horizontal" Margin="0,7,0,0">
+                        <Button Content="Проверить и добавить" Command="{Binding VerifyCommand}"/>
+                        <Button Content="Скрыть" Command="{Binding DismissCommand}" Background="{StaticResource Line}"/>
+                    </StackPanel>
+                    <TextBlock Text="{Binding ResultText}" Style="{StaticResource Muted}" FontSize="12" TextWrapping="Wrap"/>
+                </StackPanel></Border>
+            </DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
+
+            <TextBlock Text="{Binding EmptyText}" Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,10,0,4"/>
+            <ItemsControl ItemsSource="{Binding Devices}"><ItemsControl.ItemTemplate><DataTemplate>
+                <Border Style="{StaticResource DeviceCardBorder}"><StackPanel>
+                    <DockPanel>
+                        <ToggleButton DockPanel.Dock="Right" Style="{StaticResource BellToggle}" Tag="{Binding BellBrush}" IsChecked="{Binding AlarmNotify, Mode=TwoWay}" ToolTip="{Binding BellTip}" Width="34" Height="30" Margin="12,0,0,0"
+                                      VerticalAlignment="Top" Visibility="{Binding IsAlarm, Converter={StaticResource BoolVis}}"/>
+                        <StackPanel DockPanel.Dock="Right" Margin="16,0,0,0">
+                            <TextBlock Text="{Binding StateText}" Foreground="{Binding StateColor}" FontWeight="Bold" HorizontalAlignment="Right"/>
+                            <TextBlock Text="{Binding AvailabilityText}" Style="{StaticResource Muted}" FontSize="11" HorizontalAlignment="Right"/>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="{Binding TypeIcon}" FontSize="22" VerticalAlignment="Center" Margin="0,0,9,0"/>
+                            <Border Width="12" Height="12" Background="{Binding StateColor}" BorderBrush="{StaticResource Line}" BorderThickness="1" VerticalAlignment="Center" Margin="0,0,9,0"/>
+                            <StackPanel>
+                                <TextBox Width="300" Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}" FontSize="17" FontWeight="SemiBold" HorizontalAlignment="Left"/>
+                                <TextBlock Text="{Binding KindText}" Style="{StaticResource Muted}" Margin="0,3,0,0"/>
+                                <TextBlock Text="{Binding ServerText}" Style="{StaticResource Muted}" FontSize="11"/>
+                                <TextBlock Text="{Binding EntityText}" Style="{StaticResource Muted}" FontSize="11"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </DockPanel>
+
+                    <TextBlock Text="Для этого типа Rust+ API не поддерживает включение/выключение. Доступны только состояние и обновление."
+                               Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,8,0,0"
+                               Visibility="{Binding NotSwitch, Converter={StaticResource BoolVis}}"/>
+                    <StackPanel IsEnabled="{Binding IsSwitch}" Margin="0,8,0,0">
+                        <CheckBox Content="Команды включены для этого устройства" IsChecked="{Binding Enabled}"/>
+                        <WrapPanel Margin="0,6,0,4">
+                            <StackPanel Margin="0,0,12,6">
+                                <TextBlock Text="Префикс" Style="{StaticResource Muted}"/>
+                                <ComboBox Width="65" ItemsSource="{Binding Prefixes}" SelectedItem="{Binding Prefix}"/>
+                            </StackPanel>
+                            <StackPanel Margin="0,0,12,6" Visibility="{Binding IsToggle, Converter={StaticResource BoolVis}}">
+                                <TextBlock Text="Одна команда: поочерёдно включает и выключает" Style="{StaticResource Muted}"/>
+                                <TextBox Width="330" Text="{Binding ToggleText, UpdateSourceTrigger=PropertyChanged}" ToolTip="Например: свет на базе"/>
+                            </StackPanel>
+                            <Button Content="+" Command="{Binding AddModeCommand}" Width="34" Height="30" VerticalAlignment="Bottom" Margin="0,0,0,6"
+                                    ToolTip="Добавить отдельные команды включения и выключения" Visibility="{Binding IsToggle, Converter={StaticResource BoolVis}}"/>
+                        </WrapPanel>
+                        <StackPanel Visibility="{Binding IsSeparate, Converter={StaticResource BoolVis}}">
+                            <WrapPanel>
+                                <StackPanel Margin="0,0,12,6">
+                                    <TextBlock Text="Команда включения" Style="{StaticResource Muted}"/>
+                                    <TextBox Width="280" Text="{Binding EnableText, UpdateSourceTrigger=PropertyChanged}"/>
+                                </StackPanel>
+                                <StackPanel Margin="0,0,12,6">
+                                    <TextBlock Text="Команда выключения" Style="{StaticResource Muted}"/>
+                                    <TextBox Width="280" Text="{Binding DisableText, UpdateSourceTrigger=PropertyChanged}"/>
+                                </StackPanel>
+                            </WrapPanel>
+                            <Button Content="← Вернуться к одной команде" Command="{Binding ToggleModeCommand}" HorizontalAlignment="Left" Background="{StaticResource Line}"/>
+                        </StackPanel>
+                        <TextBlock Text="Разрешённые отправители (имена или SteamID через запятую/новую строку; пусто — любой участник Team Chat)"
+                                   Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,8,0,3"/>
+                        <TextBox Text="{Binding AllowedSenders, UpdateSourceTrigger=PropertyChanged}" AcceptsReturn="True" MinHeight="42" TextWrapping="Wrap"/>
+                    </StackPanel>
+
+                        <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+                        <Button Content="Включить" Command="{Binding TurnOnCommand}" Visibility="{Binding IsSwitch, Converter={StaticResource BoolVis}}"/>
+                        <Button Content="Выключить" Command="{Binding TurnOffCommand}" Visibility="{Binding IsSwitch, Converter={StaticResource BoolVis}}"/>
+                        <Button Content="Обновить состояние" Command="{Binding RefreshCommand}" Background="{StaticResource Line}"/>
+                        <Button Content="Сохранить" Command="{Binding SaveCommand}" Background="{StaticResource Line}"/>
+                    </StackPanel>
+                    <TextBlock Text="{Binding ResultText}" Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,6,0,0"/>
+                    <StackPanel Visibility="{Binding IsAlarm, Converter={StaticResource BoolVis}}" Margin="0,8,0,0">
+                            <DockPanel>
+                                <ComboBox DockPanel.Dock="Right" Width="200" ItemsSource="{Binding AlarmChannelOptions}" SelectedIndex="{Binding AlarmChannel}"/>
+                                <TextBlock Text="Уведомление при срабатывании" VerticalAlignment="Center"/>
+                            </DockPanel>
+                            <TextBlock Style="{StaticResource Muted}" FontSize="11" Margin="0,6,0,2" Text="Сообщение уведомления (показывается после названия устройства, общее для Overlay и Team Chat). Пусто — «СРАБОТАЛА СИГНАЛИЗАЦИЯ!»."/>
+                            <TextBox Text="{Binding AlarmText, UpdateSourceTrigger=PropertyChanged}" ToolTip="Например: Кто-то у входа!"/>
+                        </StackPanel>
+                </StackPanel></Border>
+            </DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
+
+            <Border Style="{StaticResource CardBorder}"><StackPanel>
+                <DockPanel>
+                    <Button DockPanel.Dock="Right" Content="Обновить журнал" Command="{Binding ReloadHistoryCommand}" Background="{StaticResource Line}" Margin="8,0,0,0"/>
+                    <TextBlock Text="Журнал команд" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                </DockPanel>
+                <TextBlock Style="{StaticResource Muted}" FontSize="11" Text="Записываются только распознанные команды. «Подтверждено» означает повторное чтение нужного состояния из Rust+."/>
+                <ItemsControl ItemsSource="{Binding History}" Margin="0,6,0,0"><ItemsControl.ItemTemplate><DataTemplate>
+                    <TextBlock Text="{Binding}" Style="{StaticResource Muted}" FontSize="11" TextWrapping="Wrap" Margin="0,2"/>
+                </DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
+            </StackPanel></Border>
+        </StackPanel></ScrollViewer>
+    </DataTemplate>
+</ResourceDictionary>

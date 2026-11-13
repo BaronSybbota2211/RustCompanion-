@@ -1,0 +1,752 @@
+using Microsoft.Extensions.Logging;
+using RustPlusApi.Data;
+using RustPlusApi.Data.Cameras;
+using RustPlusApi.Data.Clans;
+using RustPlusApi.Data.Entities;
+using RustPlusApi.Data.Events;
+using RustPlusApi.Extensions;
+using RustPlusApi.Interfaces;
+using RustPlusApi.Utils;
+using RustPlusContracts;
+using ClanInfo = RustPlusApi.Data.Clans.ClanInfo;
+
+// ReSharper disable MemberCanBePrivate.Global
+
+namespace RustPlusApi;
+
+/// <summary>
+/// Initializes a new instance of the <see cref="RustPlus"/> class,
+/// connecting to a Rust+ server using the specified parameters.
+/// </summary>
+/// <param name="connection">The server endpoint and player credentials to connect as. A connection that
+/// sets <see cref="RustPlusConnection.ServerId"/> must also set <see cref="RustPlusConnection.AuthToken"/>;
+/// otherwise an <see cref="ArgumentException"/> is thrown here rather than at the first connect.</param>
+/// <param name="options">Tuning options (timeouts, keep-alive, buffer size); defaults are used when <see langword="null"/>.</param>
+/// <param name="loggerFactory">Routes the client's diagnostics into your logging stack; logging is
+/// disabled (a no-op <c>NullLogger</c>) when <see langword="null"/>.</param>
+/// <seealso cref="RustPlusSocket"/>
+public class RustPlus(
+    RustPlusConnection connection,
+    RustPlusSocketOptions? options = null,
+    ILoggerFactory? loggerFactory = null)
+    : RustPlusSocket(connection, options, loggerFactory), IRustPlus
+{
+    /// <summary>
+    /// Occurs when an <c>EntityChanged</c> broadcast is classified as a binary-state smart device
+    /// (a smart switch or a smart alarm): the payload carries no container state (no items, no
+    /// capacity, no protection). The broadcast omits the entity type, so a storage broadcast whose
+    /// payload is only <c>value</c> is indistinguishable from a switch and lands here too — route on
+    /// <see cref="OnEntityChanged"/> with your paired entity ids when that matters.
+    /// </summary>
+    public event EventHandler<SmartDeviceEventArg>? OnSmartDeviceTriggered;
+
+    /// <summary>
+    /// Occurs when an <c>EntityChanged</c> broadcast is classified as a storage monitor: the payload
+    /// carries items, a capacity, or tool-cupboard protection. Storage broadcasts with
+    /// <c>value == true</c> and no items carry no contents snapshot and are NOT raised here (they
+    /// remain observable via <see cref="OnEntityChanged"/>). Tool-cupboard broadcasts are sometimes
+    /// partial — <c>capacity</c> may be absent and only the protection flag identifies them.
+    /// </summary>
+    public event EventHandler<StorageMonitorEventArg>? OnStorageMonitorTriggered;
+
+    /// <summary>
+    /// Occurs when a team chat message is received, providing a <see cref="TeamMessageEventArg"/>.
+    /// </summary>
+    public event EventHandler<TeamMessageEventArg>? OnTeamChatReceived;
+
+    /// <summary>
+    /// Occurs when a clan chat message is received, providing a <see cref="ClanMessageEventArg"/>.
+    /// </summary>
+    public event EventHandler<ClanMessageEventArg>? OnClanChatReceived;
+
+    /// <summary>
+    /// Occurs when the team changes (members, map notes, leader, …), providing a <see cref="TeamChangedEventArg"/>.
+    /// </summary>
+    public event EventHandler<TeamChangedEventArg>? OnTeamChanged;
+
+    /// <summary>
+    /// Occurs when the clan changes (roles, members, MOTD, …), providing a <see cref="ClanChangedEventArg"/>.
+    /// </summary>
+    public event EventHandler<ClanChangedEventArg>? OnClanChanged;
+
+    /// <summary>
+    /// Occurs when a camera frame is received for the subscribed camera, providing a <see cref="CameraRaysEventArg"/>.
+    /// </summary>
+    public event EventHandler<CameraRaysEventArg>? OnCameraRaysReceived;
+
+    /// <summary>
+    /// Occurs for every <c>EntityChanged</c> broadcast, before any device-type heuristic, with the
+    /// full raw payload. The broadcast carries no entity type; consumers that know their paired
+    /// entity ids should route on <see cref="EntityChangedEventArg.Id"/> — this is the reliable
+    /// channel when the <see cref="OnSmartDeviceTriggered"/>/<see cref="OnStorageMonitorTriggered"/>
+    /// heuristics cannot classify a payload.
+    /// </summary>
+    public event EventHandler<EntityChangedEventArg>? OnEntityChanged;
+
+    /// <summary>
+    /// Checks the subscription status of an alarm asynchronously.
+    /// </summary>
+    /// <param name="alarmId">The ID of the alarm entity.</param>
+    /// <returns>A <see cref="Task{TResult}"/> representing the asynchronous operation. The task result contains a <see cref="Response{T}"/> with the subscription information.</returns>
+    /// <param name="cancellationToken">A token to observe for cancellation requests.</param>
+    public async Task<Response<SubscriptionInfo?>> CheckSubscriptionAsync(ulong alarmId,
+        CancellationToken cancellationToken = default)
+    {
+        var request = new AppRequest
+        {
+            CheckSubscription = new AppEmpty(), EntityId = alarmId
+        };
+        return await ProcessRequestAsync<SubscriptionInfo?>(
+            request,
+            r => r.Response.Flag.ToSubscriptionInfo(), cancellationToken: cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Retrieves the information of an alarm asynchronously.
+    /// </summary>
+    /// <param name="entityId">The ID of the alarm entity.</param>
+    /// <returns>A <see cref="Task{TResult}"/> representing the asynchronous operation. The task result contains a <see cref="Response{T}"/> with the alarm information.</returns>
+    /// <param name="cancellationToken">A token to observe for cancellation requests.</param>
+    /// <remarks>The underlying <c>getEntityInfo</c> request also subscribes this connection to the
+    /// entity's <c>EntityChanged</c> broadcasts server-side — even when the read itself fails on a
+    /// type mismatch.</remarks>
+    public async Task<Response<SmartDeviceInfo?>> GetAlarmInfoAsync(ulong entityId,
+        CancellationToken cancellationToken = default)
+    {
+        return await GetEntityInfoAsync<SmartDeviceInfo?>(entityId, r => r.Response.EntityInfo.ToAlarmInfo(),
+            cancellationToken: cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Retrieves the clan information asynchronously.
+    /// </summary>
+    /// <returns>A <see cref="Task{TResult}"/> representing the asynchronous operation. The task result contains a <see cref="Response{T}"/> with the clan information.</returns>
+    /// <param name="cancellationToken">A token to observe for cancellation requests.</param>
+    public async Task<Response<ClanInfo?>> GetClanInfoAsync(CancellationToken cancellationToken = default)
+    {
+        var request = new AppRequest
+        {
+            GetClanInfo = new AppEmpty()
+        };
+        return await ProcessRequestAsync<ClanInfo?>(request, r => r.Response.ClanInfo.ToClanInfo(),
+            cancellationToken: cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Sets the clan message of the day (MOTD) asynchronously.
+    /// </summary>
+    /// <param name="message">The message to set as the clan MOTD.</param>
+    /// <returns>A <see cref="Task{TResult}"/> representing the asynchronous operation. The task result contains a payload-free <see cref="Response"/> indicating the success of the operation.</returns>
+    /// <param name="cancellationToken">A token to observe for cancellation requests.</param>
+    public async Task<Response> SetClanMotdAsync(string message, CancellationToken cancellationToken = default)
+    {
+        var request = new AppRequest
+        {
+            SetClanMotd = new AppSendMessage
+            {
+                Message = message
+            }
+        };
+        return await ProcessAckRequestAsync(request, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Retrieves the clan chat asynchronously.
+    /// </summary>
+    /// <returns>A <see cref="Task{TResult}"/> representing the asynchronous operation. The task result contains a <see cref="Response{T}"/> with the clan chat information.</returns>
+    /// <param name="cancellationToken">A token to observe for cancellation requests.</param>
+    public async Task<Response<ClanChatInfo?>> GetClanChatAsync(CancellationToken cancellationToken = default)
+    {
+        var request = new AppRequest
+        {
+            GetClanChat = new AppEmpty()
+        };
+        return await ProcessRequestAsync<ClanChatInfo?>(request, r => r.Response.ClanChat.ToClanChatInfo(),
+            cancellationToken: cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Sends a clan message asynchronously.
+    /// </summary>
+    /// <param name="message">The message to send.</param>
+    /// <returns>A <see cref="Task{TResult}"/> representing the asynchronous operation. The task result contains a payload-free <see cref="Response"/> indicating the success of the operation.</returns>
+    /// <param name="cancellationToken">A token to observe for cancellation requests.</param>
+    public async Task<Response> SendClanMessageAsync(string message, CancellationToken cancellationToken = default)
+    {
+        var request = new AppRequest
+        {
+            SendClanMessage = new AppSendMessage
+            {
+                Message = message
+            }
+        };
+        return await ProcessAckRequestAsync(request, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Retrieves the Nexus authentication asynchronously.
+    /// </summary>
+    /// <param name="appKey">The app key for Nexus authentication.</param>
+    /// <returns>A <see cref="Task{TResult}"/> representing the asynchronous operation. The task result contains a <see cref="Response{T}"/> with the Nexus authentication.</returns>
+    /// <param name="cancellationToken">A token to observe for cancellation requests.</param>
+    public async Task<Response<NexusAuth?>> GetNexusAuthAsync(string appKey,
+        CancellationToken cancellationToken = default)
+    {
+        var request = new AppRequest
+        {
+            GetNexusAuth = new AppGetNexusAuth
+            {
+                AppKey = appKey
+            }
+        };
+        return await ProcessRequestAsync<NexusAuth?>(request, r => r.Response.NexusAuth.ToNexusAuth(),
+            cancellationToken: cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Subscribes to a camera asynchronously, starting the <see cref="OnCameraRaysReceived"/> stream.
+    /// </summary>
+    /// <param name="cameraId">The identifier of the camera/CCTV entity to subscribe to.</param>
+    /// <returns>A <see cref="Task{TResult}"/> representing the asynchronous operation. The task result contains a <see cref="Response{T}"/> with the camera information.</returns>
+    /// <param name="cancellationToken">A token to observe for cancellation requests.</param>
+    public async Task<Response<CameraInfo?>> SubscribeToCameraAsync(string cameraId,
+        CancellationToken cancellationToken = default)
+    {
+        var request = new AppRequest
+        {
+            CameraSubscribe = new AppCameraSubscribe
+            {
+                CameraId = cameraId
+            }
+        };
+        return await ProcessRequestAsync<CameraInfo?>(
+                request,
+                r => r.Response.CameraSubscribeInfo.ToCameraInfo(), cancellationToken: cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Sends input (movement/mouse/buttons) to the subscribed camera asynchronously.
+    /// </summary>
+    /// <param name="buttons">The pressed <see cref="CameraButtons"/> bitmask.</param>
+    /// <param name="mouseDeltaX">The horizontal mouse delta.</param>
+    /// <param name="mouseDeltaY">The vertical mouse delta.</param>
+    /// <returns>A <see cref="Task{TResult}"/> representing the asynchronous operation. The task result contains a payload-free <see cref="Response"/> indicating the success of the operation.</returns>
+    /// <param name="cancellationToken">A token to observe for cancellation requests.</param>
+    public async Task<Response> SendCameraInputAsync(CameraButtons buttons,
+        float mouseDeltaX = 0,
+        float mouseDeltaY = 0,
+        CancellationToken cancellationToken = default)
+    {
+        var request = new AppRequest
+        {
+            CameraInput = new AppCameraInput
+            {
+                Buttons = (int)buttons,
+                MouseDelta = new Vector2
+                {
+                    X = mouseDeltaX, Y = mouseDeltaY
+                }
+            }
+        };
+        return await ProcessAckRequestAsync(request, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Unsubscribes from the currently subscribed camera asynchronously.
+    /// </summary>
+    /// <returns>A <see cref="Task{TResult}"/> representing the asynchronous operation. The task result contains a payload-free <see cref="Response"/> indicating the success of the operation.</returns>
+    /// <param name="cancellationToken">A token to observe for cancellation requests.</param>
+    public async Task<Response> UnsubscribeFromCameraAsync(CancellationToken cancellationToken = default)
+    {
+        var request = new AppRequest
+        {
+            CameraUnsubscribe = new AppEmpty()
+        };
+        return await ProcessAckRequestAsync(request, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Retrieves the server information asynchronously.
+    /// </summary>
+    /// <returns>A <see cref="Task{TResult}"/> representing the asynchronous operation. The task result contains a <see cref="Response{T}"/> with the server information.</returns>
+    /// <param name="cancellationToken">A token to observe for cancellation requests.</param>
+    public async Task<Response<ServerInfo?>> GetInfoAsync(CancellationToken cancellationToken = default)
+    {
+        var request = new AppRequest
+        {
+            GetInfo = new AppEmpty()
+        };
+        return await ProcessRequestAsync<ServerInfo?>(request, r => r.Response.Info.ToServerInfo(),
+            cancellationToken: cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Retrieves the server map asynchronously.
+    /// </summary>
+    /// <returns>A <see cref="Task{TResult}"/> representing the asynchronous operation. The task result contains a <see cref="Response{T}"/> with the server map.</returns>
+    /// <param name="cancellationToken">A token to observe for cancellation requests.</param>
+    public async Task<Response<ServerMap?>> GetMapAsync(CancellationToken cancellationToken = default)
+    {
+        var request = new AppRequest
+        {
+            GetMap = new AppEmpty()
+        };
+        return await ProcessRequestAsync<ServerMap?>(request, r => r.Response.Map.ToServerMap(),
+            cancellationToken: cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Retrieves the map markers asynchronously.
+    /// </summary>
+    /// <returns>A <see cref="Task{TResult}"/> representing the asynchronous operation. The task result contains a <see cref="Response{T}"/> with the map markers.</returns>
+    /// <param name="cancellationToken">A token to observe for cancellation requests.</param>
+    public async Task<Response<MapMarkers?>> GetMapMarkersAsync(CancellationToken cancellationToken = default)
+    {
+        var request = new AppRequest
+        {
+            GetMapMarkers = new AppEmpty()
+        };
+        return await ProcessRequestAsync<MapMarkers?>(request, r => r.Response.MapMarkers.ToMapMarkers(),
+            cancellationToken: cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Retrieves the state of a binary-state smart device (a smart switch or a smart alarm)
+    /// asynchronously, whichever of the two types the entity actually is. The server replies with the
+    /// entity's actual type and switch/alarm payloads are identical, so this method reads mixed device
+    /// sets without tracking each entity's type.
+    /// </summary>
+    /// <param name="entityId">The ID of the smart device entity.</param>
+    /// <returns>A <see cref="Task{TResult}"/> representing the asynchronous operation. The task result contains a <see cref="Response{T}"/> with the smart device information.</returns>
+    /// <param name="cancellationToken">A token to observe for cancellation requests.</param>
+    /// <remarks>The underlying <c>getEntityInfo</c> request also subscribes this connection to the
+    /// entity's <c>EntityChanged</c> broadcasts server-side — even when the read itself fails on a
+    /// type mismatch.</remarks>
+    public async Task<Response<SmartDeviceInfo?>> GetSmartDeviceInfoAsync(ulong entityId,
+        CancellationToken cancellationToken = default)
+    {
+        return await GetEntityInfoAsync<SmartDeviceInfo?>(
+            entityId,
+            r => r.Response.EntityInfo.ToSmartDeviceInfo(),
+            cancellationToken: cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Retrieves the information of a smart switch asynchronously.
+    /// </summary>
+    /// <param name="entityId">The ID of the smart switch entity.</param>
+    /// <returns>A <see cref="Task{TResult}"/> representing the asynchronous operation. The task result contains a <see cref="Response{T}"/> with the smart switch information.</returns>
+    /// <param name="cancellationToken">A token to observe for cancellation requests.</param>
+    /// <remarks>The underlying <c>getEntityInfo</c> request also subscribes this connection to the
+    /// entity's <c>EntityChanged</c> broadcasts server-side — even when the read itself fails on a
+    /// type mismatch.</remarks>
+    public async Task<Response<SmartDeviceInfo?>> GetSmartSwitchInfoAsync(ulong entityId,
+        CancellationToken cancellationToken = default)
+    {
+        return await GetEntityInfoAsync<SmartDeviceInfo?>(
+            entityId,
+            r => r.Response.EntityInfo.ToSmartSwitchInfo(), cancellationToken: cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Retrieves the information of a storage monitor asynchronously.
+    /// </summary>
+    /// <param name="entityId">The ID of the storage monitor entity.</param>
+    /// <returns>A <see cref="Task{TResult}"/> representing the asynchronous operation. The task result contains a <see cref="Response{T}"/> with the storage monitor information.</returns>
+    /// <param name="cancellationToken">A token to observe for cancellation requests.</param>
+    /// <remarks>The underlying <c>getEntityInfo</c> request also subscribes this connection to the
+    /// entity's <c>EntityChanged</c> broadcasts server-side — even when the read itself fails on a
+    /// type mismatch.</remarks>
+    public async Task<Response<StorageMonitorInfo?>> GetStorageMonitorInfoAsync(ulong entityId,
+        CancellationToken cancellationToken = default)
+    {
+        return await GetEntityInfoAsync<StorageMonitorInfo?>(
+                entityId,
+                r => r.Response.EntityInfo.ToStorageMonitorInfo(), cancellationToken: cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Retrieves the team chat information asynchronously.
+    /// </summary>
+    /// <returns>A <see cref="Task{TResult}"/> representing the asynchronous operation. The task result contains a <see cref="Response{T}"/> with the team chat information.</returns>
+    /// <param name="cancellationToken">A token to observe for cancellation requests.</param>
+    public async Task<Response<TeamChatInfo?>> GetTeamChatAsync(CancellationToken cancellationToken = default)
+    {
+        var request = new AppRequest
+        {
+            GetTeamChat = new AppEmpty()
+        };
+        return await ProcessRequestAsync<TeamChatInfo?>(
+            request,
+            r => r.Response.TeamChat.ToTeamChatInfo(), cancellationToken: cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Retrieves the team information asynchronously.
+    /// </summary>
+    /// <returns>A <see cref="Task{TResult}"/> representing the asynchronous operation. The task result contains a <see cref="Response{T}"/> with the team information.</returns>
+    /// <param name="cancellationToken">A token to observe for cancellation requests.</param>
+    public async Task<Response<TeamInfo?>> GetTeamInfoAsync(CancellationToken cancellationToken = default)
+    {
+        var request = new AppRequest
+        {
+            GetTeamInfo = new AppEmpty()
+        };
+        return await ProcessRequestAsync<TeamInfo?>(request, r => r.Response.TeamInfo.ToTeamInfo(),
+            cancellationToken: cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Retrieves the current time information asynchronously.
+    /// </summary>
+    /// <returns>A <see cref="Task{TResult}"/> representing the asynchronous operation. The task result contains a <see cref="Response{T}"/> with the time information.</returns>
+    /// <param name="cancellationToken">A token to observe for cancellation requests.</param>
+    public async Task<Response<TimeInfo?>> GetTimeAsync(CancellationToken cancellationToken = default)
+    {
+        var request = new AppRequest
+        {
+            GetTime = new AppEmpty()
+        };
+        return await ProcessRequestAsync<TimeInfo?>(request, r => r.Response.Time.ToTimeInfo(),
+            cancellationToken: cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Kicks a player out of the team asynchronously.
+    /// </summary>
+    /// <param name="steamId">The Steam ID of the player to kick.</param>
+    /// <returns>A <see cref="Task{TResult}"/> representing the asynchronous operation. The task result contains a payload-free <see cref="Response"/> indicating the success of the operation.</returns>
+    /// <param name="cancellationToken">A token to observe for cancellation requests.</param>
+    public async Task<Response> KickFromTeamAsync(ulong steamId, CancellationToken cancellationToken = default)
+    {
+        var request = new AppRequest
+        {
+            KickFromTeam = new AppTeamKick
+            {
+                SteamId = steamId
+            }
+        };
+        return await ProcessAckRequestAsync(request, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Promotes a player to leader asynchronously.
+    /// </summary>
+    /// <param name="steamId">The Steam ID of the player to promote.</param>
+    /// <returns>A <see cref="Task{TResult}"/> representing the asynchronous operation. The task result contains a payload-free <see cref="Response"/> indicating the success of the operation.</returns>
+    /// <param name="cancellationToken">A token to observe for cancellation requests.</param>
+    public async Task<Response> PromoteToLeaderAsync(ulong steamId, CancellationToken cancellationToken = default)
+    {
+        var request = new AppRequest
+        {
+            PromoteToLeader = new AppPromoteToLeader
+            {
+                SteamId = steamId
+            }
+        };
+        return await ProcessAckRequestAsync(request, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Sends a team message asynchronously.
+    /// </summary>
+    /// <param name="message">The message to send.</param>
+    /// <returns>A <see cref="Task{TResult}"/> representing the asynchronous operation. The task result contains a <see cref="Response{T}"/> with the team message.</returns>
+    /// <param name="cancellationToken">A token to observe for cancellation requests.</param>
+    public async Task<Response<TeamMessage?>> SendTeamMessageAsync(string message,
+        CancellationToken cancellationToken = default)
+    {
+        var request = new AppRequest
+        {
+            SendTeamMessage = new AppSendMessage
+            {
+                Message = message
+            }
+        };
+        return await ProcessRequestAsync<TeamMessage?>(
+            request,
+            // The live server acks sendTeamMessage with an immediate seq success {}; the team-chat
+            // broadcast echoing the message follows separately. Whichever resolves the request first
+            // must produce a result: the echo carries the full message (name, colour, server time),
+            // the bare ack means the message was accepted, so reconstruct it from what we sent.
+            r => r.Broadcast?.TeamMessage?.Message is { } echoed
+                ? echoed.ToTeamMessage()
+                : new TeamMessage
+                {
+                    SteamId = PlayerId, Name = string.Empty, Message = message, Time = DateTime.UtcNow
+                },
+            // Match only the broadcast echoing our own message (our Steam ID): another player's
+            // message arriving first cannot be mistaken for the reply.
+            broadcastReplyMatcher: b => b.TeamMessage?.Message?.SteamId == PlayerId,
+            cancellationToken: cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Sets the value of a smart switch asynchronously.
+    /// </summary>
+    /// <param name="smartSwitchId">The ID of the smart switch entity.</param>
+    /// <param name="smartSwitchValue">The value to set for the smart switch.</param>
+    /// <returns>A <see cref="Task{TResult}"/> representing the asynchronous operation. The task result contains a <see cref="Response{T}"/> with the updated smart switch information.</returns>
+    /// <param name="cancellationToken">A token to observe for cancellation requests.</param>
+    public async Task<Response<SmartDeviceInfo?>> SetSmartSwitchValueAsync(ulong smartSwitchId,
+        bool smartSwitchValue,
+        CancellationToken cancellationToken = default)
+    {
+        var request = new AppRequest
+        {
+            EntityId = smartSwitchId,
+            SetEntityValue = new AppSetEntityValue
+            {
+                Value = smartSwitchValue
+            },
+        };
+        return await ProcessRequestAsync<SmartDeviceInfo?>(
+            request,
+            // The live server acks setEntityValue with an immediate seq success {}; the EntityChanged
+            // broadcast follows separately — and not at all when the state did not change. Whichever
+            // resolves the request first must produce a result: the broadcast carries the authoritative
+            // state, the bare ack means the server accepted the set, so the state is the requested value.
+            r => r.Broadcast?.EntityChanged is { } entityChanged
+                ? entityChanged.ToSmartDeviceEvent()
+                : new SmartDeviceEventArg
+                {
+                    Id = smartSwitchId, IsActive = smartSwitchValue
+                },
+            // Match only the EntityChanged broadcast for this switch: an unrelated broadcast
+            // (team chat, another entity) cannot resolve this request.
+            broadcastReplyMatcher: b => b.EntityChanged?.EntityId == smartSwitchId,
+            cancellationToken: cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Sets the subscription status of an entity asynchronously.
+    /// </summary>
+    /// <param name="entityId">The ID of the entity.</param>
+    /// <param name="doSubscribe">Specifies whether to subscribe or unsubscribe.</param>
+    /// <returns>A <see cref="Task{TResult}"/> representing the asynchronous operation. The task result contains a payload-free <see cref="Response"/> indicating the success of the operation.</returns>
+    /// <param name="cancellationToken">A token to observe for cancellation requests.</param>
+    public async Task<Response> SetSubscriptionAsync(ulong entityId,
+        bool doSubscribe = true,
+        CancellationToken cancellationToken = default)
+    {
+        var request = new AppRequest
+        {
+            EntityId = entityId,
+            SetSubscription = new AppFlag
+            {
+                Value = doSubscribe
+            }
+        };
+        return await ProcessAckRequestAsync(request, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Strobes a smart switch asynchronously.
+    /// </summary>
+    /// <param name="entityId">The ID of the smart switch entity.</param>
+    /// <param name="timeoutMilliseconds">The duration of each state in milliseconds.</param>
+    /// <param name="value">The initial value of the smart switch.</param>
+    /// <returns>A <see cref="Task{TResult}"/> representing the asynchronous operation. The task result contains a <see cref="Response{T}"/> with the updated smart switch information.</returns>
+    /// <param name="cancellationToken">A token to observe for cancellation requests.</param>
+    public async Task<Response<SmartDeviceInfo?>> StrobeSmartSwitchAsync(
+        ulong entityId,
+        int timeoutMilliseconds = 1000,
+        bool value = true,
+        CancellationToken cancellationToken = default)
+    {
+        var response = await SetSmartSwitchValueAsync(entityId, value, cancellationToken: cancellationToken)
+            .ConfigureAwait(false);
+
+        if (!response.IsSuccess)
+        {
+            return response;
+        }
+
+        await Task.Delay(timeoutMilliseconds, cancellationToken: cancellationToken).ConfigureAwait(false);
+        return await SetSmartSwitchValueAsync(entityId, !value, cancellationToken: cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Toggles a smart switch asynchronously.
+    /// </summary>
+    /// <param name="entityId">The ID of the smart switch entity.</param>
+    /// <returns>A <see cref="Task{TResult}"/> representing the asynchronous operation. The task result contains a <see cref="Response{T}"/> with the updated smart switch information.</returns>
+    /// <param name="cancellationToken">A token to observe for cancellation requests.</param>
+    public async Task<Response<SmartDeviceInfo?>> ToggleSmartSwitchAsync(ulong entityId,
+        CancellationToken cancellationToken = default)
+    {
+        var entityInfo = await GetSmartSwitchInfoAsync(entityId, cancellationToken: cancellationToken)
+            .ConfigureAwait(false);
+
+        if (!entityInfo.IsSuccess)
+        {
+            return entityInfo;
+        }
+
+        var value = entityInfo.Data!.IsActive;
+        return await SetSmartSwitchValueAsync(entityId, !value, cancellationToken: cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Parses the notification received from the Rust+ server.
+    /// </summary>
+    /// <param name="broadcast">The broadcast received from the server.</param>
+    protected override void ParseNotification(AppBroadcast? broadcast)
+    {
+        if (broadcast is null)
+        {
+            return;
+        }
+
+        if (broadcast.EntityChanged is not null)
+        {
+            var entityChanged = broadcast.EntityChanged;
+            OnEntityChanged?.Invoke(this, entityChanged.ToEntityChangedEvent());
+
+            // The broadcast carries no entity type. A payload is storage-shaped when it exposes any
+            // container state; a bare `value` is indistinguishable from a switch/alarm and routes to
+            // OnSmartDeviceTriggered. Consumers that know their paired ids use OnEntityChanged.
+            var payload = entityChanged.Payload;
+            if (payload.Items.Count > 0 || payload.Capacity > 0 || payload.HasProtection)
+            {
+                // A storage broadcast with value == true carries no contents snapshot; surfacing it
+                // would wipe consumer-tracked contents.
+                if (!payload.Value || payload.Items.Count > 0)
+                {
+                    OnStorageMonitorTriggered?.Invoke(this, entityChanged.ToStorageMonitorEvent());
+                }
+            }
+            else
+            {
+                OnSmartDeviceTriggered?.Invoke(this, entityChanged.ToSmartDeviceEvent());
+            }
+
+            return;
+        }
+
+        if (broadcast.TeamMessage is not null)
+        {
+            OnTeamChatReceived?.Invoke(this, broadcast.TeamMessage.Message.ToTeamMessageEvent());
+            return;
+        }
+
+        if (broadcast.TeamChanged is not null)
+        {
+            OnTeamChanged?.Invoke(this, broadcast.TeamChanged.ToTeamChangedEvent());
+            return;
+        }
+
+        if (broadcast.ClanMessage is not null)
+        {
+            OnClanChatReceived?.Invoke(this, broadcast.ClanMessage.ToClanMessageEvent());
+            return;
+        }
+
+        if (broadcast.ClanChanged is not null)
+        {
+            OnClanChanged?.Invoke(this, broadcast.ClanChanged.ToClanChangedEvent());
+            return;
+        }
+
+        if (broadcast.CameraRays is not null)
+        {
+            OnCameraRaysReceived?.Invoke(this, broadcast.CameraRays.ToCameraRaysEvent());
+            return;
+        }
+
+        Logger.LogUnknownBroadcast(broadcast);
+    }
+
+    /// <summary>
+    /// Processes the request asynchronously and returns the result.
+    /// </summary>
+    /// <typeparam name="T">The type of the result.</typeparam>
+    /// <param name="request">The request to be processed.</param>
+    /// <param name="successSelector">The function to select the result from the response.</param>
+    /// <param name="broadcastReplyMatcher">When non-null, the success reply is delivered as a broadcast
+    /// (no seq) and is matched by this predicate, so the selector reads <c>response.Broadcast</c> rather
+    /// than <c>response.Response</c>. Unrelated broadcasts stay pure notifications.</param>
+    /// <returns>A <see cref="Task{TResult}"/> representing the asynchronous operation. The task result contains a <see cref="Response{T}"/> with the processed result.</returns>
+    /// <param name="cancellationToken">A token to observe for cancellation requests.</param>
+    /// <exception cref="InvalidOperationException">Thrown when the client is not connected.</exception>
+    /// <remarks>A success-selector exception (other than <see cref="OperationCanceledException"/>) is
+    /// returned as a failed <see cref="Response{T}"/> carrying the exception message — a successful
+    /// server reply never surfaces as a thrown exception.</remarks>
+    protected async Task<Response<T?>> ProcessRequestAsync<T>(AppRequest request,
+        Func<AppMessage, T> successSelector,
+        Func<AppBroadcast, bool>? broadcastReplyMatcher = null,
+        CancellationToken cancellationToken = default)
+    {
+        var response = await SendRequestAsync(request, broadcastReplyMatcher, cancellationToken: cancellationToken)
+            .ConfigureAwait(false);
+
+        if (IsError(response))
+        {
+            return ResponseHelper.BuildGenericOutput<T>(false, default!, GetErrorMessage(response));
+        }
+
+        try
+        {
+            return ResponseHelper.BuildGenericOutput(true, successSelector(response));
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            // A successful server reply must never escape as a thrown exception: a selector failure
+            // (e.g. reading an alarm through GetSmartSwitchInfoAsync — the server answers with the
+            // entity's actual type) becomes a failed Response the consumer can tell apart from a
+            // transport error.
+            Logger.LogSelectorFailed(ex);
+            return new Response<T?>
+            {
+                IsSuccess = false,
+                Error = new ErrorMessage
+                {
+                    Message = ex.Message, Code = RustPlusErrorCode.ClientMappingFailed
+                }
+            };
+        }
+    }
+
+    /// <summary>
+    /// Processes an acknowledge-only request asynchronously: success is the absence of a server
+    /// error, and no payload is returned.
+    /// </summary>
+    /// <param name="request">The request to be processed.</param>
+    /// <param name="cancellationToken">A token to observe for cancellation requests.</param>
+    /// <returns>A <see cref="Task{TResult}"/> whose result is a payload-free <see cref="Response"/>.</returns>
+    /// <exception cref="InvalidOperationException">Thrown when the client is not connected.</exception>
+    protected async Task<Response> ProcessAckRequestAsync(AppRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        var response = await SendRequestAsync(request, cancellationToken: cancellationToken).ConfigureAwait(false);
+
+        return IsError(response)
+            ? ResponseHelper.BuildAckOutput(false, GetErrorMessage(response))
+            : ResponseHelper.BuildAckOutput(true);
+    }
+
+    /// <summary>
+    /// Retrieves the information of an entity asynchronously.
+    /// </summary>
+    /// <typeparam name="T">The type of the entity information.</typeparam>
+    /// <param name="entityId">The ID of the entity.</param>
+    /// <param name="selector">The function to select the entity information from the response.</param>
+    /// <returns>A <see cref="Task{TResult}"/> representing the asynchronous operation. The task result contains a <see cref="Response{T}"/> with the entity information.</returns>
+    /// <param name="cancellationToken">A token to observe for cancellation requests.</param>
+    /// <remarks>The underlying <c>getEntityInfo</c> request also subscribes this connection to the
+    /// entity's <c>EntityChanged</c> broadcasts server-side — even when the mapping of the reply fails.</remarks>
+    protected async Task<Response<T?>> GetEntityInfoAsync<T>(ulong entityId,
+        Func<AppMessage, T> selector,
+        CancellationToken cancellationToken = default)
+    {
+        var request = new AppRequest
+        {
+            EntityId = entityId, GetEntityInfo = new AppEmpty()
+        };
+        return await ProcessRequestAsync(request, selector, cancellationToken: cancellationToken).ConfigureAwait(false);
+    }
+}

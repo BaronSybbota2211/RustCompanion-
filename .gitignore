@@ -1,0 +1,30 @@
+# Build output
+**/bin/
+**/obj/
+**/publish/
+.vs/
+.vscode/
+TestResults/
+artifacts/
+
+# Local app data / logs / databases
+*.log
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+
+# User / machine-specific configuration and secrets
+.env
+.env.*
+secrets/
+*secrets*.json
+appsettings.Local.json
+*.user
+*.suo
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
