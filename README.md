@@ -1,78 +1,81 @@
 <div align="center">
 
-<img src="docs/media/banner.png" alt="Rust Companion — Brutal Red" width="100%">
+<img src="docs/media/banner.png" alt="Помощник для Rust — Брутальный красный" width="100%">
 
-# Rust Companion
+# Помощник для Rust (Rust Companion)
 
-**Desktop companion toolkit for Rust — server monitoring, event timers, player watchlists and Rust+ device control.**
+**Многофункциональный помощник для игроков Rust: поиск серверов, мониторинг игроков, отслеживание игровых событий, таймеры, уведомления и управление устройствами Rust+.**
 
-[![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11-3678D4?logo=windows)](https://www.microsoft.com/windows)
+[![Платформа](https://img.shields.io/badge/Платформа-Windows%2010%2F11-3678D4?logo=windows)](https://www.microsoft.com/windows)
 [![.NET](https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet)](https://dotnet.microsoft.com/)
-[![UI](https://img.shields.io/badge/UI-WPF-8A2BE2)](https://learn.microsoft.com/dotnet/desktop/wpf/)
-[![Status](https://img.shields.io/badge/status-development-orange)](#project-status)
+[![Интерфейс](https://img.shields.io/badge/Интерфейс-WPF-8A2BE2)](https://learn.microsoft.com/dotnet/desktop/wpf/)
+[![Статус](https://img.shields.io/badge/Статус-В%20разработке-orange)](#статус-проекта)
 
-*SURVIVE. MONITOR. CONTROL.*
+*ВЫЖИВАЙ. СЛЕДИ. УПРАВЛЯЙ.*
 
 </div>
 
 ---
 
-## Overview
+## О проекте
 
-Rust Companion is a Windows desktop application for Rust players. It brings server discovery, player observation, event tracking, timers, notifications and Rust+ smart-device controls together in one interface.
+**Rust Companion** — настольное приложение для Windows, созданное для игроков Rust. Оно объединяет поиск игровых серверов, наблюдение за игроками, отслеживание событий, таймеры, уведомления и управление совместимыми устройствами Rust+ в одном интерфейсе.
 
-The application uses a dark **Brutal Red** visual theme and keeps its data locally.
+Приложение использует тёмную визуальную тему **Brutal Red** и хранит локальные данные на компьютере пользователя.
 
-> **Fair-play note:** Rust Companion does not read Rust process memory, inject code into the game, automate gameplay or bypass Easy Anti-Cheat (EAC).
+> **Честная игра:** приложение не читает память процесса Rust, не внедряет код в игру, не автоматизирует игровой процесс и не обходит Easy Anti-Cheat (EAC).
 
-## Features
+## Возможности
 
-| Area | What it does |
+| Раздел | Описание |
 |---|---|
-| **Server browser** | Find Rust servers through Steam server queries and the Valve master server; save and manage servers. |
-| **Player monitoring** | Watch selected Steam players, keep a local sightings/session history and organize watchlists into groups. |
-| **Rust+** | Pair through Steam and the in-game pairing flow; connect to Rust+ and manage supported smart devices. |
-| **Smart devices** | Work with supported Smart Switch, Smart Alarm and Storage Monitor functionality. |
-| **Monument reference** | Browse a reference catalog of 36 monuments and track a selected monument's respawn observations. |
-| **Event tracking** | Record Chinook, patrol helicopter and airdrop observations; maintain per-server histories and estimates where enough observations exist. |
-| **Timers** | Track custom timers, Bradley respawn intervals, Deep Sea and other events. Estimates are clearly based on user observations and configured intervals. |
-| **Notifications & overlay** | Configure per-event Windows and in-game overlay notifications. |
-| **Decay / upkeep** | Estimate decay for up to five already-decaying building pieces from their current HP. |
-| **Integrations & data** | Telegram/Discord notifications, diagnostics, database backup, import/export. |
+| **Поиск серверов** | Поиск серверов Rust через Steam и главный сервер Valve, сохранение и управление списком серверов. |
+| **Мониторинг игроков** | Наблюдение за выбранными игроками Steam, локальная история обнаружений и сессий, группировка списков наблюдения. |
+| **Интеграция Rust+** | Подключение через Steam и внутриигровую процедуру сопряжения, работа с поддерживаемыми устройствами. |
+| **Умные устройства** | Работа с поддерживаемыми функциями Smart Switch, Smart Alarm и Storage Monitor. |
+| **Справочник монументов** | Каталог из 36 монументов и отслеживание наблюдений за временем их повторного появления. |
+| **Игровые события** | Запись наблюдений за Chinook, патрульным вертолётом и аирдропами, история по серверам и расчётные оценки при наличии данных. |
+| **Таймеры** | Пользовательские таймеры, интервалы возрождения Bradley, Deep Sea и других событий. |
+| **Уведомления и оверлей** | Настройка уведомлений Windows и внутриигрового оверлея для отдельных событий. |
+| **Расчёт распада и содержания** | Оценка распада для пяти уже повреждающихся строительных элементов на основе их текущей прочности. |
+| **Интеграции и данные** | Уведомления Telegram и Discord, диагностика, резервное копирование базы данных, импорт и экспорт. |
 
-Feature availability and data quality depend on the configured sources, server responses and user observations. Some timers and forecasts are estimates, not authoritative game data.
+Доступность функций и точность данных зависят от источников, ответов серверов и наблюдений пользователя. Таймеры и прогнозы являются оценочными и не гарантируют точное время появления событий.
 
-## Screenshots
+## Скриншоты
 
-Real application screenshots will be added here after capturing the Windows build. The repository intentionally does not use concept art as a substitute for actual product screenshots.
+Здесь будут размещены настоящие скриншоты приложения после подготовки сборки Windows. Изображения-концепты не используются вместо реальных снимков программы.
 
-| Main dashboard | Server browser |
+| Главное окно | Поиск серверов |
 |---|---|
-| _Screenshot coming soon_ | _Screenshot coming soon_ |
-| Rust+ devices | Timers & events |
-| _Screenshot coming soon_ | _Screenshot coming soon_ |
+| _Скриншот появится позже_ | _Скриншот появится позже_ |
 
-See [`docs/SCREENSHOTS_AND_VIDEO.md`](docs/SCREENSHOTS_AND_VIDEO.md) for the exact capture checklist and recommended recording sequence.
+| Устройства Rust+ | Таймеры и события |
+|---|---|
+| _Скриншот появится позже_ | _Скриншот появится позже_ |
 
-## Download & installation
+Список необходимых снимков и последовательность записи демонстрации находятся в [инструкции по скриншотам и видео](docs/SCREENSHOTS_AND_VIDEO.md).
 
-**Requirements**
-- Windows 10 or Windows 11 (x64).
-- .NET 10 SDK for building from source.
-- Internet connection for Steam/Rust+ and other online data sources.
-- WebView2 Runtime where required by the application.
+## Скачивание и установка
 
-### Install from source
+### Системные требования
 
-1. Download or clone this repository.
-2. Install the [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0).
-3. Close any running Rust Companion instance.
-4. Run `setup.cmd` from the repository folder.
-5. The script restores packages, builds the app, runs tests, publishes a self-contained Windows x64 executable and installs it under `%LOCALAPPDATA%\Programs\RustCompanion`.
+- Windows 10 или Windows 11 (x64).
+- .NET 10 SDK для сборки из исходного кода.
+- Подключение к интернету для Steam, Rust+ и других сетевых источников.
+- Среда выполнения WebView2, если она требуется приложению.
 
-The setup log is written to `setup.log`. If installation fails, attach that file when reporting the problem.
+### Установка из исходного кода
 
-### Build and run manually
+1. Скачайте или клонируйте этот репозиторий.
+2. Установите [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0).
+3. Закройте запущенные экземпляры Rust Companion.
+4. Запустите `setup.cmd` из папки репозитория.
+5. Скрипт восстановит пакеты, соберёт приложение, запустит тесты, подготовит автономную сборку Windows x64 и установит её в `%LOCALAPPDATA%\Programs\RustCompanion`.
+
+Журнал установки сохраняется в `setup.log`. Если установка завершилась ошибкой, приложите этот файл при создании сообщения об ошибке.
+
+### Сборка и запуск вручную
 
 ```powershell
 dotnet restore RustCompanion.slnx
@@ -80,7 +83,7 @@ dotnet test tests/RustCompanion.Tests/RustCompanion.Tests.csproj -c Release
 dotnet run --project src/RustCompanion.App/RustCompanion.App.csproj
 ```
 
-To publish a self-contained Windows x64 build:
+Публикация автономной сборки Windows x64:
 
 ```powershell
 dotnet publish src/RustCompanion.App/RustCompanion.App.csproj `
@@ -90,85 +93,95 @@ dotnet publish src/RustCompanion.App/RustCompanion.App.csproj `
   -o publish
 ```
 
-> The desktop UI is WPF and requires Windows to run. On Linux, .NET may restore/build Windows-targeted projects with `-p:EnableWindowsTargeting=true`, but it cannot run the WPF application.
+> Интерфейс приложения построен на WPF и для запуска требует Windows. В Linux .NET может восстановить пакеты и собрать проект для Windows с параметром `-p:EnableWindowsTargeting=true`, но запустить WPF-приложение там нельзя.
 
-## Configuration & local data
+## Настройки и локальные данные
 
-Application data is stored under:
+Данные приложения хранятся в каталоге:
 
 ```text
 %LOCALAPPDATA%\RustCompanion
 ```
 
-This directory may contain the local SQLite database, logs and locally protected credentials. Back up this folder before manually changing or deleting application data.
+В нём могут находиться локальная база SQLite, журналы и защищённые локально учётные данные. Перед ручным изменением или удалением данных обязательно создайте резервную копию этой папки.
 
-Steam API and other optional integrations may require user-provided credentials. Never commit API keys, bot tokens, webhook URLs, pairing credentials, database files or personal logs to a public repository.
+Для Steam API и некоторых дополнительных интеграций могут потребоваться собственные ключи доступа. Никогда не публикуйте в открытом репозитории API-ключи, токены ботов, ссылки вебхуков, данные сопряжения, файлы баз данных и личные журналы.
 
-## Data sources & limitations
+## Источники данных и ограничения
 
-- Server and player information is obtained from supported Steam query/API sources.
-- Rust+ functionality depends on successful pairing and the available Rust+ service/device responses.
-- Event history and forecasts are based on recorded observations and configured intervals. They should not be treated as guaranteed spawn times.
-- Player monitoring is not a live anti-cheat or admin tool; availability and accuracy depend on source responses.
-- Some planned features are not implemented. Check [`docs/MERGE_NOTES.md`](docs/MERGE_NOTES.md), [`docs/RUSTPLUS.md`](docs/RUSTPLUS.md) and the relevant feature documentation for current scope.
+- Информация о серверах и игроках поступает из поддерживаемых источников Steam Query и Steam API.
+- Возможности Rust+ зависят от успешного сопряжения и ответов сервиса Rust+ и устройств.
+- История событий и прогнозы строятся на записанных наблюдениях и настроенных интервалах. Их нельзя считать гарантированным временем появления событий.
+- Мониторинг игроков не является античитом или административным инструментом. Доступность и точность зависят от ответов источников данных.
+- Некоторые запланированные возможности ещё не реализованы. Актуальный объём функций смотрите в [заметках о слиянии](docs/MERGE_NOTES.md), [документации Rust+](docs/RUSTPLUS.md) и документации соответствующих функций.
 
-## Security & fair play
+## Безопасность и честная игра
 
-Read [`docs/SECURITY.md`](docs/SECURITY.md) before configuring integrations. The application is designed as an external companion utility and does not modify the Rust game process or bypass EAC.
+Перед настройкой интеграций прочитайте раздел [Безопасность](docs/SECURITY.md).
 
-If you discover a security issue, please do not publish credentials or exploit details in a public issue. Use GitHub's private vulnerability reporting if it is enabled for this repository.
+Приложение предназначено для работы как внешняя вспомогательная программа. Оно не изменяет процесс игры Rust и не обходит EAC.
 
-## Technology
+Если вы обнаружили уязвимость, не публикуйте учётные данные или подробности эксплуатации в открытом обсуждении. Используйте приватное сообщение об уязвимости GitHub, если эта возможность включена для репозитория.
+
+## Используемые технологии
 
 - C# / .NET 10
 - WPF + MVVM
 - SQLite
-- Steam server query / Steam Web API integrations
-- Rust+ connectivity
-- xUnit tests
+- Интеграции Steam Server Query и Steam Web API
+- Подключение к Rust+
+- Автоматические тесты xUnit
 
-## Project structure
+## Структура проекта
 
 ```text
 src/
-  RustCompanion.App/       WPF desktop application, views, overlay and UI
-  RustCompanion.Core/      Core logic, storage, monitoring and services
-  RustCompanion.RustPlus/  Rust+ integration
-  ThirdParty/              Bundled Rust+ API implementation
+  RustCompanion.App/       Приложение WPF, окна, оверлей и интерфейс
+  RustCompanion.Core/      Основная логика, хранилище и службы мониторинга
+  RustCompanion.RustPlus/  Интеграция с Rust+
+  ThirdParty/              Сторонняя реализация Rust+ API
 tests/
-  RustCompanion.Tests/     Automated tests
-docs/                      Feature, data-source and security documentation
+  RustCompanion.Tests/     Автоматические тесты
+docs/                      Документация функций, источников данных и безопасности
 ```
 
-## Project status
+## Статус проекта
 
-This repository represents the **stage 28 setup package** supplied for publication. The project is under active development; not every idea or planned feature is implemented. Please read the feature notes before relying on a particular workflow.
+Этот репозиторий содержит **пакет подготовки к публикации, этап 28**. Проект активно разрабатывается. Не все идеи и запланированные функции уже реализованы. Перед использованием конкретной функции ознакомьтесь с соответствующими заметками и документацией.
 
-## Contributing
+## Участие в разработке
 
-Bug reports and focused improvement proposals are welcome. When opening an issue, include:
-- Windows version and application version.
-- Steps to reproduce the issue.
-- Expected and actual behavior.
-- Relevant, redacted log excerpts (never include API keys, tokens or private pairing data).
+Сообщения об ошибках и предложения по улучшению приветствуются.
 
-## License
+При создании сообщения об ошибке укажите:
 
-No license has been specified yet. Until a license is added, the source code is published for viewing but standard copyright restrictions apply; do not assume it is open source or that redistribution is permitted.
+- Версию Windows и приложения.
+- Шаги для воспроизведения проблемы.
+- Ожидаемое и фактическое поведение.
+- Отредактированные фрагменты журналов, если они нужны для диагностики. Не прикладывайте API-ключи, токены и личные данные сопряжения.
+
+## Лицензия
+
+Лицензия пока не указана. До добавления лицензии исходный код доступен для просмотра, но на него распространяются стандартные ограничения авторского права. Не следует считать проект свободным программным обеспечением или предполагать, что его распространение разрешено.
 
 ---
 
 <div align="center">
 
-**Rust Companion · Brutal Red**
+**Помощник для Rust · Brutal Red**
 
 </div>
 
-## Documentation
+## Документация
 
-Полный каталог документации: [docs/INDEX.md](docs/INDEX.md).
+Полный каталог: [Документация проекта](docs/INDEX.md).
 
 - [Руководство пользователя](docs/USER_GUIDE.md)
-- [Архитектура](docs/ARCHITECTURE.md)
+- [Архитектура проекта](docs/ARCHITECTURE.md)
 - [Руководство разработчика](docs/DEVELOPER_GUIDE.md)
 - [Решение проблем](docs/TROUBLESHOOTING.md)
+- [Источники данных](docs/DATA_SOURCES.md)
+- [Монументы](docs/MONUMENTS.md)
+- [Мониторинг игроков](docs/PLAYER_MONITORING.md)
+- [Уведомления и прогнозы](docs/NOTIFICATIONS_AND_FORECASTS.md)
+- [Серверы, горячие клавиши и оверлей](docs/SERVER_BROWSER_HOTKEYS_OVERLAY.md)
