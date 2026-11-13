@@ -163,3 +163,12 @@ No license has been specified yet. Until a license is added, the source code is 
 **Rust Companion · Brutal Red**
 
 </div>
+
+## Documentation
+
+Полный каталог документации: [docs/INDEX.md](docs/INDEX.md).
+
+- [Руководство пользователя](docs/USER_GUIDE.md)
+- [Архитектура](docs/ARCHITECTURE.md)
+- [Руководство разработчика](docs/DEVELOPER_GUIDE.md)
+- [Решение проблем](docs/TROUBLESHOOTING.md)
