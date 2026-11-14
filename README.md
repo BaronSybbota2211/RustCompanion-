@@ -224,3 +224,7 @@ Rust Companion — русскоязычная программа-помощни�
 - Rust Player Tracker
 - Rust Server Browser
 - Rust+ Companion App
+
+## 🎬 Промо-видео
+
+[Смотреть и скачать RustCompanion Promo](assets/promo/RustCompanion_promo_sfx.mp4)
