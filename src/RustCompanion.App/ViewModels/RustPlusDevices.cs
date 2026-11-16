@@ -119,6 +119,7 @@ public sealed partial class RustPlusDeviceCommandRowViewModel : ObservableObject
     [RelayCommand] private void ToggleMode() => IsSeparate = false;
     [RelayCommand] private Task SaveAsync() => _parent.SaveDeviceAsync(this);
     [RelayCommand] private Task RefreshAsync() => _parent.RefreshDeviceAsync(this);
+    [RelayCommand] private Task DeleteAsync() => _parent.DeleteDeviceAsync(this);
     [RelayCommand] private Task TurnOnAsync() => _parent.SetSwitchAsync(this, true);
     [RelayCommand] private Task TurnOffAsync() => _parent.SetSwitchAsync(this, false);
 }
@@ -320,6 +321,23 @@ public sealed partial class RustPlusDevicesViewModel : ObservableObject
         await _devices.SetAlarmSettingsAsync(row.Device.Id, row.AlarmText, row.AlarmChannel);
         row.Device.AlarmText = row.AlarmText; row.Device.AlarmChannel = row.AlarmChannel;
         row.ResultText = "Уведомление сохранено";
+    }
+
+    /// <summary>Удаляет устройство из списка приложения (вместе с его командами и журналом). В игре сопряжение остаётся: устройство вернётся, только если нажать Pair заново.</summary>
+    public async Task DeleteDeviceAsync(RustPlusDeviceCommandRowViewModel row)
+    {
+        var name = string.IsNullOrWhiteSpace(row.Name) ? row.Device.Name : row.Name;
+        if (System.Windows.MessageBox.Show($"Удалить устройство «{name}»?\nБудут удалены его команды и журнал событий. В игре сопряжение останется; устройство вернётся, если снова нажать Pair.",
+                "Удаление устройства", System.Windows.MessageBoxButton.YesNo, System.Windows.MessageBoxImage.Question) != System.Windows.MessageBoxResult.Yes) return;
+        try
+        {
+            await _devices.DeleteAsync(row.Device.Id);
+            _hub.Forget(row.Device.ServerId, row.Device.EntityId);
+            Devices.Remove(row);
+            _hub.NotifyDevicesChanged(row.Device.ServerId);
+            StatusMessage = $"Устройство «{name}» удалено.";
+        }
+        catch (Exception ex) { row.ResultText = "Не удалось удалить: " + ex.Message; }
     }
 
     public async Task SaveDeviceAsync(RustPlusDeviceCommandRowViewModel row)

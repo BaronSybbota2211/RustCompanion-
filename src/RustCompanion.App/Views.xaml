@@ -970,6 +970,7 @@
                         <Button Content="Выключить" Command="{Binding TurnOffCommand}" Visibility="{Binding IsSwitch, Converter={StaticResource BoolVis}}"/>
                         <Button Content="Обновить состояние" Command="{Binding RefreshCommand}" Background="{StaticResource Line}"/>
                         <Button Content="Сохранить" Command="{Binding SaveCommand}" Background="{StaticResource Line}"/>
+                        <Button Content="Удалить устройство" Command="{Binding DeleteCommand}" Background="{StaticResource Line}" ToolTip="Убрать устройство из списка приложения (команды и журнал тоже удаляются)"/>
                     </StackPanel>
                     <TextBlock Text="{Binding ResultText}" Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,6,0,0"/>
                     <StackPanel Visibility="{Binding IsAlarm, Converter={StaticResource BoolVis}}" Margin="0,8,0,0">
